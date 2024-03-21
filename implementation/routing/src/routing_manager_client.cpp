@@ -1,9 +1,9 @@
-// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 #include <unistd.h>
 #endif
 
@@ -130,7 +130,7 @@ void routing_manager_client::init() {
 
 void routing_manager_client::start() {
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
     if (configuration_->is_local_routing()) {
 #else
     {
@@ -247,23 +247,34 @@ routing_manager_client::on_net_state_change(
 
                 if (!receiver_)
                     receiver_ = ep_mgr_->create_local_server(shared_from_this());
-                receiver_->start();
-                is_started_ = true;
 
-                if (!sender_)
-                    sender_ = ep_mgr_->create_local(VSOMEIP_ROUTING_CLIENT);
-                sender_->start();
+                if (receiver_) {
+                    receiver_->start();
+                    is_started_ = true;
+
+                    if (!sender_)
+                        sender_ = ep_mgr_->create_local(VSOMEIP_ROUTING_CLIENT);
+
+                    if (sender_) {
+                        host_->set_sec_client_port(sender_->get_local_port());
+                        sender_->start();
+                    }
+                }
             }
         } else {
             if (is_local_link_available_) {
                 is_started_ = false;
 
                 state_ = inner_state_type_e::ST_DEREGISTERED;
-                on_disconnect(sender_);
 
-                sender_->stop();
+                if (sender_) {
+                    on_disconnect(sender_);
+                    host_->set_sec_client_port(VSOMEIP_SEC_PORT_UNSET);
+                    sender_->stop();
+                }
 
-                receiver_->stop();
+                if (receiver_)
+                    receiver_->stop();
 
                 {
                     std::lock_guard<std::mutex> its_lock(local_services_mutex_);
@@ -1322,7 +1333,7 @@ void routing_manager_client::on_message(
                             << std::setw(4) << its_event << ":"
                             << std::dec << (uint16_t)its_major << "] "
                             << std::boolalpha << (its_pending_id != PENDING_SUBSCRIPTION_ID)
-							<< " "
+                            << " "
                             << (_subscription_accepted ?
                                     std::to_string(its_count) + " accepted." : "not accepted.");
 
@@ -1779,7 +1790,7 @@ void routing_manager_client::on_routing_info(
                 if (its_client == get_client()) {
                     VSOMEIP_INFO << std::hex << "Application/Client " << get_client()
                                 << " (" << host_->get_name() << ") is registered.";
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
                     if (!its_security->check_credentials(get_client(), get_sec_client())) {
                         VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << std::hex << get_client()
                                 << " : routing_manager_client::on_routing_info: RIE_ADD_CLIENT: isn't allowed"
@@ -2040,7 +2051,7 @@ void routing_manager_client::reconnect(const std::map<client_t, std::string> &_c
     VSOMEIP_INFO << std::hex << "Application/Client " << get_client()
             << ": Reconnecting to routing manager.";
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
     if (!its_security->check_credentials(get_client(), get_sec_client())) {
         VSOMEIP_ERROR << "vSomeIP Security: Client 0x" << std::hex << get_client()
                 << " :  routing_manager_client::reconnect: isn't allowed"
@@ -2173,6 +2184,7 @@ void routing_manager_client::deregister_application() {
 void routing_manager_client::send_pong() const {
 
     protocol::pong_command its_command;
+    its_command.set_client(get_client());
 
     std::vector<byte_t> its_buffer;
     protocol::error_e its_error;
@@ -2418,7 +2430,7 @@ void routing_manager_client::send_pending_commands() {
 }
 
 void routing_manager_client::init_receiver() {
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
     auto its_security = policy_manager_impl::get();
     if (!its_security)
         return;

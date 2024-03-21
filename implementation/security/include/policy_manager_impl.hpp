@@ -83,6 +83,7 @@ public:
 private:
 
     // Configuration
+    bool exist_in_any_client_policies_unlocked(std::shared_ptr<policy> &_policy);
     void load_policies(const configuration_element &_element);
     void load_policy(const boost::property_tree::ptree &_tree);
     void load_policy_body(std::shared_ptr<policy> &_policy,
@@ -153,10 +154,11 @@ private:
     mutable boost::shared_mutex policy_extension_paths_mutex_;
     //map[hostname, pair[path,  map[complete path with UID/GID, control loading]]
     std::map<std::string, std::pair<std::string, std::map<std::string, bool>>> policy_extension_paths_;
+
+    bool check_routing_credentials_;
 #endif // !VSOMEIP_DISABLE_SECURITY
 
     bool is_configured_;
-    bool check_routing_credentials_;
 
     mutable std::mutex routing_credentials_mutex_;
     std::pair<uint32_t, uint32_t> routing_credentials_;
@@ -166,20 +168,17 @@ private:
 
     struct vsomeip_sec_client_comparator_t {
         bool operator()(const vsomeip_sec_client_t &_lhs, const vsomeip_sec_client_t &_rhs) const {
-            if (_lhs.client_type < _rhs.client_type) {
+            if (_lhs.port < _rhs.port) {
                 return true;
-            } else if (_lhs.client_type == _rhs.client_type) {
-                switch (_lhs.client_type) {
-                case VSOMEIP_CLIENT_UDS:
-                    return ((_lhs.client.uds_client.user < _rhs.client.uds_client.user)
-                        || ((_lhs.client.uds_client.user == _rhs.client.uds_client.user)
-                        && (_lhs.client.uds_client.group < _rhs.client.uds_client.group)));
-                case VSOMEIP_CLIENT_TCP:
-                    return ((_lhs.client.ip_client.ip < _rhs.client.ip_client.ip)
-                        || ((_lhs.client.ip_client.ip == _rhs.client.ip_client.ip)
-                        && (_lhs.client.ip_client.port < _rhs.client.ip_client.port)));
-                default:
-                    ;
+            } else if (_lhs.port == _rhs.port) {
+                if (_lhs.port == VSOMEIP_SEC_PORT_UNUSED) {
+                    return ((_lhs.user < _rhs.user)
+                        || ((_lhs.user == _rhs.user)
+                        && (_lhs.group < _rhs.group)));
+                } else {
+                    return ((_lhs.host < _rhs.host)
+                        || ((_lhs.host == _rhs.host)
+                        && (_lhs.port < _rhs.port)));
                 }
             }
             return false;

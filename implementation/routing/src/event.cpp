@@ -251,7 +251,6 @@ event::set_payload_notify_pending(const std::shared_ptr<payload> &_payload) {
 
 void
 event::unset_payload(bool _force) {
-
     std::lock_guard<std::mutex> its_lock(mutex_);
     if (_force) {
         is_set_ = false;
@@ -428,11 +427,12 @@ event::notify_one_unlocked(client_t _client, bool _force) {
         routing_->send(_client, update_, _force);
     } else {
         VSOMEIP_INFO << __func__
-                << ": Notifying "
+                << ": Initial value for ["
                 << std::hex << std::setw(4) << std::setfill('0')
                 << get_service() << "." << get_instance() << "." << get_event()
-                << " to client " << _client
-                << " failed. Event payload not set!";
+                << "] not yet set by the service/client."
+                << " Client " << _client
+                << " will not receive any initial notification!";
     }
 }
 
@@ -614,6 +614,9 @@ event::add_subscriber(eventgroup_t _eventgroup,
 
                 return (is_changed || is_elapsed);
             };
+
+            // Create a new callback for this client if filter interval is used
+            routing_->register_debounce(_filter, _client, shared_from_this());
         } else {
             filters_.erase(_client);
         }
@@ -636,8 +639,10 @@ event::remove_subscriber(eventgroup_t _eventgroup, client_t _client) {
 
     std::lock_guard<std::mutex> its_lock(eventgroups_mutex_);
     auto find_eventgroup = eventgroups_.find(_eventgroup);
-    if (find_eventgroup != eventgroups_.end())
+    if (find_eventgroup != eventgroups_.end()) {
         find_eventgroup->second.erase(_client);
+        routing_->remove_debounce(_client, get_event());
+    }
 }
 
 bool
@@ -714,6 +719,14 @@ event::get_filtered_subscribers(bool _force) {
     return its_filtered_subscribers;
 }
 
+// Get the clients that have pending updates after debounce timeout
+void 
+event::get_pending_updates(const std::set<client_t> &_clients) {
+    if(has_changed(current_->get_payload(), update_->get_payload())) {
+        routing_->update_debounce_clients(_clients, get_event());
+    }
+}
+
 std::set<client_t>
 event::update_and_get_filtered_subscribers(
         const std::shared_ptr<payload> &_payload, bool _is_from_remote) {
@@ -722,6 +735,7 @@ event::update_and_get_filtered_subscribers(
 
     (void)prepare_update_payload_unlocked(_payload, true);
     auto its_subscribers = get_filtered_subscribers(!_is_from_remote);
+    get_pending_updates(its_subscribers);
     if (_is_from_remote)
         update_payload_unlocked();
 

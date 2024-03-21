@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2022 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -107,7 +107,7 @@ private:
         void set_bound_client_host(const std::string &_bound_client_host);
         std::string get_bound_client_host() const;
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
         void set_bound_sec_client(const vsomeip_sec_client_t &_sec_client);
 #endif
 
@@ -124,7 +124,7 @@ private:
                 boost::system::error_code const &_error, std::size_t _bytes);
         void receive_cbk(boost::system::error_code const &_error,
                          std::size_t _bytes
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
                          , std::uint32_t const &_uid, std::uint32_t const &_gid
 #endif
         );
@@ -132,6 +132,8 @@ private:
         std::string get_path_local() const;
         std::string get_path_remote() const;
         void handle_recv_buffer_exception(const std::exception &_e);
+        void shutdown_and_close();
+        void shutdown_and_close_unlocked();
 
         std::mutex socket_mutex_;
         local_uds_server_endpoint_impl::socket_type socket_;
@@ -152,6 +154,7 @@ private:
         vsomeip_sec_client_t sec_client_;
 
         bool assigned_client_;
+        std::atomic<bool> is_stopped_;
     };
 
     std::mutex acceptor_mutex_;

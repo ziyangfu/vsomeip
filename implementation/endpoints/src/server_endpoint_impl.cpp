@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -540,8 +540,8 @@ bool server_endpoint_impl<Protocol>::queue_train(
     bool must_erase(false);
 
     auto &its_data = _it->second;
-    its_data.queue_.push_back(std::make_pair(_train->buffer_, 0));
     its_data.queue_size_ += _train->buffer_->size();
+    its_data.queue_.emplace_back(_train->buffer_, 0);
 
     if (!its_data.is_sending_) { // no writing in progress
         must_erase = send_queued(_it);
@@ -686,8 +686,56 @@ void server_endpoint_impl<Protocol>::send_cbk(
     boost::system::error_code ec;
     its_data.sent_timer_.cancel(ec);
 
+    // Extracts some information for logging puposes.
+    //
+    // TODO(brunoldsilva): Code like this is used in a lot of places. It might be worth moving this
+    // into a proper function.
+    auto parse_message_ids = [] (
+        const message_buffer_ptr_t& buffer,
+        service_t& its_service,
+        method_t& its_method,
+        client_t& its_client,
+        session_t& its_session
+    ) {
+        if (buffer && buffer->size() > VSOMEIP_SESSION_POS_MAX) {
+            its_service = VSOMEIP_BYTES_TO_WORD(
+                    (*buffer)[VSOMEIP_SERVICE_POS_MIN],
+                    (*buffer)[VSOMEIP_SERVICE_POS_MAX]);
+            its_method = VSOMEIP_BYTES_TO_WORD(
+                    (*buffer)[VSOMEIP_METHOD_POS_MIN],
+                    (*buffer)[VSOMEIP_METHOD_POS_MAX]);
+            its_client = VSOMEIP_BYTES_TO_WORD(
+                    (*buffer)[VSOMEIP_CLIENT_POS_MIN],
+                    (*buffer)[VSOMEIP_CLIENT_POS_MAX]);
+            its_session = VSOMEIP_BYTES_TO_WORD(
+                    (*buffer)[VSOMEIP_SESSION_POS_MIN],
+                    (*buffer)[VSOMEIP_SESSION_POS_MAX]);
+        }
+    };
+
+    message_buffer_ptr_t its_buffer;
+    if (its_data.queue_.size()) {
+        its_buffer = its_data.queue_.front().first;
+    }
+    service_t its_service(0);
+    method_t its_method(0);
+    client_t its_client(0);
+    session_t its_session(0);
+
     if (!_error) {
-        its_data.queue_size_ -= its_data.queue_.front().first->size();
+        const std::size_t payload_size = its_data.queue_.front().first->size();
+        if (payload_size <= its_data.queue_size_) {
+            its_data.queue_size_ -= payload_size;
+        } else {
+            parse_message_ids(its_buffer, its_service, its_method, its_client, its_session);
+            VSOMEIP_WARNING << __func__ << ": prevented queue_size underflow. queue_size: "
+                << its_data.queue_size_ << " payload_size: " << payload_size << " payload: ("
+                << std::hex << std::setw(4) << std::setfill('0') << its_client <<"): ["
+                << std::hex << std::setw(4) << std::setfill('0') << its_service << "."
+                << std::hex << std::setw(4) << std::setfill('0') << its_method << "."
+                << std::hex << std::setw(4) << std::setfill('0') << its_session << "]";
+            its_data.queue_size_ = 0;
+        }
         its_data.queue_.pop_front();
 
         update_last_departure(its_data);
@@ -705,34 +753,13 @@ void server_endpoint_impl<Protocol>::send_cbk(
                 cancel_dispatch_timer(it);
                 targets_.erase(it);
                 check_if_all_queues_are_empty();
-            }
-            its_data.is_sending_ = false;
+            } else
+                its_data.is_sending_ = false;
         }
     } else {
-        message_buffer_ptr_t its_buffer;
-        if (its_data.queue_.size()) {
-            its_buffer = its_data.queue_.front().first;
-        }
-        service_t its_service(0);
-        method_t its_method(0);
-        client_t its_client(0);
-        session_t its_session(0);
-        if (its_buffer && its_buffer->size() > VSOMEIP_SESSION_POS_MAX) {
-            its_service = VSOMEIP_BYTES_TO_WORD(
-                    (*its_buffer)[VSOMEIP_SERVICE_POS_MIN],
-                    (*its_buffer)[VSOMEIP_SERVICE_POS_MAX]);
-            its_method = VSOMEIP_BYTES_TO_WORD(
-                    (*its_buffer)[VSOMEIP_METHOD_POS_MIN],
-                    (*its_buffer)[VSOMEIP_METHOD_POS_MAX]);
-            its_client = VSOMEIP_BYTES_TO_WORD(
-                    (*its_buffer)[VSOMEIP_CLIENT_POS_MIN],
-                    (*its_buffer)[VSOMEIP_CLIENT_POS_MAX]);
-            its_session = VSOMEIP_BYTES_TO_WORD(
-                    (*its_buffer)[VSOMEIP_SESSION_POS_MIN],
-                    (*its_buffer)[VSOMEIP_SESSION_POS_MAX]);
-        }
         // error: sending of outstanding responses isn't started again
         // delete remaining outstanding responses
+        parse_message_ids(its_buffer, its_service, its_method, its_client, its_session);
         VSOMEIP_WARNING << "sei::send_cbk received error: " << _error.message()
                 << " (" << std::dec << _error.value() << ") "
                 << get_remote_information(it) << " "
@@ -767,6 +794,19 @@ void server_endpoint_impl<Protocol>::flush_cbk(
 
         (void) flush(_key);
     }
+}
+
+template<typename Protocol>
+void server_endpoint_impl<Protocol>::remove_stop_handler(service_t _service) {
+
+    std::ostream&& its_services_log{VSOMEIP_INFO};
+    its_services_log << __func__ << ": ";
+
+    std::lock_guard<std::mutex> its_lock{mutex_};
+    for (const auto &its_service : prepare_stop_handlers_)
+        its_services_log << std::hex << std::setw(4) << std::setfill('0') << its_service.first << ' ';
+
+    prepare_stop_handlers_.erase(_service);
 }
 
 template<typename Protocol>
@@ -808,7 +848,7 @@ void server_endpoint_impl<Protocol>::start_dispatch_timer(
         its_offset = std::chrono::nanoseconds::zero();
     }
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
     its_data.dispatch_timer_->expires_from_now(its_offset);
 #else
     its_data.dispatch_timer_->expires_from_now(
@@ -838,10 +878,15 @@ void server_endpoint_impl<Protocol>::update_last_departure(
 
 // Instantiate template
 #ifdef __linux__
-template class server_endpoint_impl<boost::asio::local::stream_protocol>;
 #if VSOMEIP_BOOST_VERSION < 106600
 template class server_endpoint_impl<boost::asio::local::stream_protocol_ext>;
+#else
+template class server_endpoint_impl<boost::asio::local::stream_protocol>;
 #endif
+#endif
+
+#ifdef __QNX__
+template class server_endpoint_impl<boost::asio::local::stream_protocol_ext>;
 #endif
 
 template class server_endpoint_impl<boost::asio::ip::tcp>;

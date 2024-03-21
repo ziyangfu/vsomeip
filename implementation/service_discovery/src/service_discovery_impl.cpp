@@ -114,11 +114,31 @@ service_discovery_impl::init() {
         initial_delay_max = tmp;
     }
 
-    std::random_device r;
-    std::mt19937 e(r());
-    std::uniform_int_distribution<std::uint32_t> distribution(
-            initial_delay_min, initial_delay_max);
-    initial_delay_ = std::chrono::milliseconds(distribution(e));
+    try {
+        std::random_device r;
+        std::mt19937 e(r());
+        std::uniform_int_distribution<std::uint32_t> distribution(
+                initial_delay_min, initial_delay_max);
+        initial_delay_ = std::chrono::milliseconds(distribution(e));
+    } catch (const std::exception& e) {
+        VSOMEIP_ERROR << "Failed to generate random initial delay: " << e.what();
+
+        // Fallback to the Mersenne Twister engine
+        const auto seed = static_cast<std::mt19937::result_type>(
+            std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::high_resolution_clock::now().time_since_epoch())
+                .count());
+
+        std::mt19937 mtwister{seed};
+
+        // Interpolate between initial_delay bounds
+        initial_delay_ = std::chrono::milliseconds(
+            initial_delay_min +
+            (static_cast<std::int64_t>(mtwister()) *
+             static_cast<std::int64_t>(initial_delay_max - initial_delay_min) /
+             static_cast<std::int64_t>(std::mt19937::max() -
+                                       std::mt19937::min())));
+    }
 
 
     repetitions_base_delay_ = std::chrono::milliseconds(
@@ -228,6 +248,11 @@ service_discovery_impl::update_request(service_t _service, instance_t _instance)
     }
 }
 
+std::recursive_mutex&
+service_discovery_impl::get_subscribed_mutex() {
+    return subscribed_mutex_;
+}
+
 void
 service_discovery_impl::subscribe(
         service_t _service, instance_t _instance,
@@ -245,7 +270,7 @@ service_discovery_impl::subscribe(
     bool is_selective(_info ? _info->is_selective() : false);
 #endif // VSOMEIP_ENABLE_COMPAT
 
-    std::lock_guard<std::mutex> its_lock(subscribed_mutex_);
+    std::lock_guard<std::recursive_mutex> its_lock(subscribed_mutex_);
     auto found_service = subscribed_.find(_service);
     if (found_service != subscribed_.end()) {
         auto found_instance = found_service->second.find(_instance);
@@ -418,7 +443,7 @@ service_discovery_impl::unsubscribe(service_t _service,
 
     boost::asio::ip::address its_address;
     {
-        std::lock_guard<std::mutex> its_lock(subscribed_mutex_);
+        std::lock_guard<std::recursive_mutex> its_lock(subscribed_mutex_);
         auto found_service = subscribed_.find(_service);
         if (found_service != subscribed_.end()) {
             auto found_instance = found_service->second.find(_instance);
@@ -492,7 +517,7 @@ service_discovery_impl::unsubscribe_all(
     boost::asio::ip::address its_address;
 
     {
-        std::lock_guard<std::mutex> its_lock(subscribed_mutex_);
+        std::lock_guard<std::recursive_mutex> its_lock(subscribed_mutex_);
         auto found_service = subscribed_.find(_service);
         if (found_service != subscribed_.end()) {
             auto found_instance = found_service->second.find(_instance);
@@ -534,7 +559,7 @@ service_discovery_impl::unsubscribe_all_on_suspend() {
             std::vector<std::shared_ptr<message_impl> > > its_stopsubscribes;
 
     {
-        std::lock_guard<std::mutex> its_lock(subscribed_mutex_);
+        std::lock_guard<std::recursive_mutex> its_lock(subscribed_mutex_);
         for (auto its_service : subscribed_) {
             for (auto its_instance : its_service.second) {
                 for (auto &its_eventgroup : its_instance.second) {
@@ -582,7 +607,7 @@ void
 service_discovery_impl::remove_subscriptions(
         service_t _service, instance_t _instance) {
 
-    std::lock_guard<std::mutex> its_lock(subscribed_mutex_);
+    std::lock_guard<std::recursive_mutex> its_lock(subscribed_mutex_);
     auto found_service = subscribed_.find(_service);
     if (found_service != subscribed_.end()) {
         found_service->second.erase(_instance);
@@ -1097,6 +1122,7 @@ service_discovery_impl::on_message(
 #endif
     std::lock_guard<std::mutex> its_lock(check_ttl_mutex_);
     std::lock_guard<std::mutex> its_session_lock(sessions_received_mutex_);
+    std::lock_guard<std::recursive_mutex> its_subscribed_lock(subscribed_mutex_);
 
     if(is_suspended_) {
         return;
@@ -1527,7 +1553,6 @@ service_discovery_impl::process_offerservice_serviceentry(
 
     // No need to resubscribe for unicast offers
     if (_received_via_mcast) {
-        std::lock_guard<std::mutex> its_lock(subscribed_mutex_);
         auto found_service = subscribed_.find(_service);
         if (found_service != subscribed_.end()) {
             auto found_instance = found_service->second.find(_instance);
@@ -1664,7 +1689,7 @@ service_discovery_impl::on_endpoint_connected(
         get_subscription_address(its_dummy, _endpoint, its_address);
 
     {
-        std::lock_guard<std::mutex> its_lock(subscribed_mutex_);
+        std::lock_guard<std::recursive_mutex> its_lock(subscribed_mutex_);
         auto found_service = subscribed_.find(_service);
         if (found_service != subscribed_.end()) {
             auto found_instance = found_service->second.find(_instance);
@@ -2472,7 +2497,7 @@ service_discovery_impl::handle_eventgroup_subscription_nack(
         uint8_t _counter, const std::set<client_t> &_clients) {
     (void)_counter;
 
-    std::lock_guard<std::mutex> its_lock(subscribed_mutex_);
+    std::lock_guard<std::recursive_mutex> its_lock(subscribed_mutex_);
     auto found_service = subscribed_.find(_service);
     if (found_service != subscribed_.end()) {
         auto found_instance = found_service->second.find(_instance);
@@ -2508,7 +2533,7 @@ service_discovery_impl::handle_eventgroup_subscription_ack(
     (void)_ttl;
     (void)_counter;
 
-    std::lock_guard<std::mutex> its_lock(subscribed_mutex_);
+    std::lock_guard<std::recursive_mutex> its_lock(subscribed_mutex_);
     auto found_service = subscribed_.find(_service);
     if (found_service != subscribed_.end()) {
         auto found_instance = found_service->second.find(_instance);
@@ -3342,16 +3367,10 @@ service_discovery_impl::check_stop_subscribe_subscribe(
         message_impl::entries_t::const_iterator _iter,
         message_impl::entries_t::const_iterator _end,
         const message_impl::options_t& _options) const {
-    const message_impl::entries_t::const_iterator its_next = std::next(_iter);
-    if ((*_iter)->get_ttl() > 0
-            || (*_iter)->get_type() != entry_type_e::STOP_SUBSCRIBE_EVENTGROUP
-            || its_next == _end
-            || (*its_next)->get_type() != entry_type_e::SUBSCRIBE_EVENTGROUP) {
-        return false;
-    }
 
-    return (*static_cast<eventgroupentry_impl*>(_iter->get())).matches(
-            *(static_cast<eventgroupentry_impl*>(its_next->get())), _options);
+	return (*_iter)->get_ttl() == 0
+		&& (*_iter)->get_type() == entry_type_e::STOP_SUBSCRIBE_EVENTGROUP
+		&& has_opposite(_iter, _end, _options);
 }
 
 bool

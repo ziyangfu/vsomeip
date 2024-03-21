@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -12,7 +12,7 @@
 #include "../include/local_tcp_client_endpoint_impl.hpp"
 #include "../include/local_tcp_server_endpoint_impl.hpp"
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 #include "../include/local_uds_client_endpoint_impl.hpp"
 #include "../include/local_uds_server_endpoint_impl.hpp"
 #endif
@@ -88,7 +88,7 @@ std::shared_ptr<endpoint> endpoint_manager_base::create_local_server(
              << std::hex << rm_->get_client();
     const client_t its_client = rm_->get_client();
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
     if (is_local_routing_) {
         if (-1 == ::unlink(its_path.str().c_str()) && errno != ENOENT) {
             VSOMEIP_ERROR << "endpoint_manager_base::init_receiver unlink failed ("
@@ -122,6 +122,7 @@ std::shared_ptr<endpoint> endpoint_manager_base::create_local_server(
         port_t its_port;
         std::set<port_t> its_used_ports;
         auto its_address = configuration_->get_routing_guest_address();
+        uint32_t its_current_wait_time { 0 };
         while (get_local_server_port(its_port, its_used_ports) && !its_server_endpoint) {
             try {
                 its_server_endpoint = std::make_shared<local_tcp_server_endpoint_impl>(
@@ -140,8 +141,19 @@ std::shared_ptr<endpoint> endpoint_manager_base::create_local_server(
                 VSOMEIP_INFO << __func__ << ": Connecting to other clients from "
                         << its_address.to_string() << ":" << std::dec << local_port_;
 
-            } catch (const std::exception&) {
-                its_used_ports.insert(its_port);
+                rm_->set_sec_client_port(local_port_);
+
+            } catch (const boost::system::system_error &e) {
+                if (e.code() == boost::asio::error::address_in_use) {
+                    its_used_ports.insert(its_port);
+                } else {
+                    its_current_wait_time += LOCAL_TCP_PORT_WAIT_TIME;
+                    if (its_current_wait_time > LOCAL_TCP_PORT_MAX_WAIT_TIME)
+                        break;
+
+                    std::this_thread::sleep_for(
+                            std::chrono::milliseconds(LOCAL_TCP_PORT_WAIT_TIME));
+                }
             }
         }
 
@@ -251,14 +263,14 @@ endpoint_manager_base::create_local_unlocked(client_t _client) {
              << std::hex << _client;
     std::shared_ptr<endpoint> its_endpoint;
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
     if (is_local_routing_) {
-        VSOMEIP_INFO << "Client [" << std::hex << rm_->get_client() << "] is connecting to ["
-            << std::hex << _client << "] at " << its_path.str();
         its_endpoint = std::make_shared<local_uds_client_endpoint_impl>(
             shared_from_this(), rm_->shared_from_this(),
             boost::asio::local::stream_protocol::endpoint(its_path.str()),
             io_, configuration_);
+        VSOMEIP_INFO << "Client [" << std::hex << rm_->get_client() << "] is connecting to ["
+            << std::hex << _client << "] at " << its_path.str();
     } else {
 #else
     {
@@ -332,7 +344,21 @@ endpoint_manager_base::get_local_server_port(port_t &_port,
 
 #define SERVER_PORT_OFFSET 2
 
-    auto its_port_ranges = configuration_->get_routing_guest_ports();
+#ifdef _WIN32
+    uid_t its_uid { ANY_UID };
+    gid_t its_gid { ANY_GID };
+#else
+    uid_t its_uid { getuid() };
+    gid_t its_gid { getgid() };
+#endif
+
+    auto its_port_ranges = configuration_->get_routing_guest_ports(
+            its_uid, its_gid);
+
+    if (its_port_ranges.empty()) {
+        VSOMEIP_WARNING << __func__ << ": No configured port ranges for uid/gid="
+            << std::dec << its_uid << '/' << its_gid;
+    }
 
     for (const auto &its_range : its_port_ranges) {
         for (int r = its_range.first; r < its_range.second;

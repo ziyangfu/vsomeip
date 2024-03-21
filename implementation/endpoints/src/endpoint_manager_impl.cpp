@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -8,7 +8,7 @@
 #include <vsomeip/internal/logger.hpp>
 
 #include "../include/local_tcp_server_endpoint_impl.hpp"
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
 #include "../include/local_uds_server_endpoint_impl.hpp"
 #endif
 #include "../include/udp_client_endpoint_impl.hpp"
@@ -645,7 +645,7 @@ endpoint_manager_impl::create_routing_root(
         num_fd = sd_listen_fds(0);
 #endif
 
-#if defined(__linux__) || defined(ANDROID)
+#if defined(__linux__) || defined(ANDROID) || defined(__QNX__)
         if (num_fd > 1) {
             VSOMEIP_ERROR <<  "Too many file descriptors received by systemd socket activation! num_fd: " << num_fd;
         } else if (num_fd == 1) {
@@ -749,10 +749,10 @@ endpoint_manager_impl::create_routing_root(
                     std::chrono::milliseconds(VSOMEIP_ROUTING_ROOT_RECONNECT_INTERVAL));
             }
         }
-        
+
         if (!create_routing_result) {
             return false;
-        } 
+        }
 
         _is_socket_activated = false;
     }

@@ -23,7 +23,7 @@
 
 #define VSOMEIP_DEFAULT_CONFIGURATION_FILE      "/vendor/run/etc/vsomeip.json"
 #define VSOMEIP_LOCAL_CONFIGURATION_FILE        "./vsomeip.json"
-#define VSOMEIP_MANDATORY_CONFIGURATION_FILES   "vsomeip_std.json,vsomeip_app.json,vsomeip_plc.json,vsomeip_log.json,vsomeip_security.json,vsomeip_whitelist.json,vsomeip_policy_extensions.json"
+#define VSOMEIP_MANDATORY_CONFIGURATION_FILES   "vsomeip_std.json,vsomeip_app.json,vsomeip_plc.json,vsomeip_log.json,vsomeip_security.json,vsomeip_whitelist.json,vsomeip_policy_extensions.json,vsomeip_portcfg.json"
 
 #define VSOMEIP_DEFAULT_CONFIGURATION_FOLDER    "/vendor/run/etc/vsomeip"
 #define VSOMEIP_DEBUG_CONFIGURATION_FOLDER      "/var/opt/public/sin/vsomeip/"
@@ -40,7 +40,7 @@
 
 #define VSOMEIP_E2E_LIBRARY                     "libvsomeip_e2e.so"
 
-#define VSOMEIP_SEC_LIBRARY                     "libvsomeip_sec.so"
+#define VSOMEIP_SEC_LIBRARY                     "libvsomeip-sec.so.1"
 
 #define VSOMEIP_ROUTING                         "vsomeipd"
 #define VSOMEIP_ROUTING_CLIENT                  0
@@ -66,6 +66,8 @@
 #define VSOMEIP_MAX_TCP_CONNECT_TIME            5000
 #define VSOMEIP_MAX_TCP_RESTART_ABORTS          5
 #define VSOMEIP_MAX_TCP_SENT_WAIT_TIME          10000
+
+#define VSOMEIP_MAX_NETLINK_RETRIES             3
 
 #define VSOMEIP_TP_MAX_SEGMENT_LENGTH_DEFAULT   1392
 
@@ -94,7 +96,10 @@
 #define VSOMEIP_LOCAL_CLIENT_ENDPOINT_RECV_BUFFER_SIZE  19
 
 #define VSOMEIP_MINIMUM_CHECK_TTL_TIMEOUT       100
-#define VSOMEIP_SETSOCKOPT_TIMEOUT_US           500000  // microseconds
+#define VSOMEIP_SETSOCKOPT_TIMEOUT_US           500000  // us
+
+#define LOCAL_TCP_PORT_WAIT_TIME                100
+#define LOCAL_TCP_PORT_MAX_WAIT_TIME            10000
 
 #include <pthread.h>
 

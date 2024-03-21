@@ -1,4 +1,4 @@
-// Copyright (C) 2016-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2016-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -209,7 +209,11 @@ void * plugin_manager_impl::load_symbol(void * _handle, const std::string &_symb
             error_message = dlerror();
 #endif
 
+#ifdef __QNX__
+            VSOMEIP_ERROR << "Cannot load symbol " << std::quoted(_symbol_name.c_str()) << " because: " << error_message;
+#else
             VSOMEIP_ERROR << "Cannot load symbol " << std::quoted(_symbol_name) << " because: " << error_message;
+#endif
 
 #ifdef _WIN32
             // Required to release memory allocated by FormatMessageA()

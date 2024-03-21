@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2022 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+# Copyright (C) 2015-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -11,8 +11,8 @@ include_directories(
     ${gtest_SOURCE_DIR}/include
 )
 
-set(TEST_LINK_LIBRARIES gtest)
 
+set(TEST_LINK_LIBRARIES gtest)
 set(NETWORK_TEST_BIN_DIR ${PROJECT_BINARY_DIR}/test/network_tests)
 set(NETWORK_TEST_SRC_DIR ${PROJECT_SOURCE_DIR}/test/network_tests)
 
@@ -76,7 +76,6 @@ if(NOT ${TESTS_BAT})
     add_executable(${TEST_CONFIGURATION}
         configuration_tests/configuration-test.cpp
         ${PROJECT_SOURCE_DIR}/implementation/plugin/src/plugin_manager_impl.cpp
-        ${PROJECT_SOURCE_DIR}/test/common/utility.cpp
     )
     target_link_libraries(${TEST_CONFIGURATION}
         ${VSOMEIP_NAME}
@@ -84,6 +83,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # The following will make sure that ${TEST_CONFIGURATION_CONFIG_FILE} is copied
@@ -103,17 +104,18 @@ endif()
 ##############################################################################
 # application test
 ##############################################################################
+set(TEST_APPLICATION application_test)
+
+add_executable(${TEST_APPLICATION} application_tests/${TEST_APPLICATION}.cpp)
+target_link_libraries(${TEST_APPLICATION}
+    ${VSOMEIP_NAME}
+    ${Boost_LIBRARIES}
+    ${DL_LIBRARY}
+    ${TEST_LINK_LIBRARIES}
+    ${DLT_LIBRARIES}
+    vsomeip_utilities
+)
 if(NOT ${TESTS_BAT})
-    set(TEST_APPLICATION application_test)
-
-    add_executable(${TEST_APPLICATION} application_tests/${TEST_APPLICATION}.cpp)
-    target_link_libraries(${TEST_APPLICATION}
-        ${VSOMEIP_NAME}
-        ${Boost_LIBRARIES}
-        ${DL_LIBRARY}
-        ${TEST_LINK_LIBRARIES}
-    )
-
     set(TEST_APPLICATION_SINGLE_PROCESS_NAME ${TEST_APPLICATION}_single_process)
     add_executable(${TEST_APPLICATION_SINGLE_PROCESS_NAME} application_tests/${TEST_APPLICATION_SINGLE_PROCESS_NAME}.cpp)
     target_link_libraries(${TEST_APPLICATION_SINGLE_PROCESS_NAME}
@@ -121,7 +123,12 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
+    if(QNX)
+        target_compile_definitions(${TEST_APPLICATION_SINGLE_PROCESS_NAME} PRIVATE _QNX_SOURCE)
+    endif()
 
     set(TEST_APPLICATION_AVAILABILITY_NAME ${TEST_APPLICATION}_availability)
     add_executable(${TEST_APPLICATION_AVAILABILITY_NAME} application_tests/${TEST_APPLICATION_AVAILABILITY_NAME}.cpp)
@@ -130,58 +137,14 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_APPLICATION_SINGLE_PROCESS_CONFIGURATION_FILE ${TEST_APPLICATION}_single_process.json)
     copy_to_builddir(${NETWORK_TEST_SRC_DIR}/application_tests/${TEST_APPLICATION_SINGLE_PROCESS_CONFIGURATION_FILE}
         ${NETWORK_TEST_BIN_DIR}/${TEST_APPLICATION_SINGLE_PROCESS_CONFIGURATION_FILE}
         ${TEST_APPLICATION}_single_process
-    )
-
-    set(TEST_APPLICATION_CONFIGURATION_FILE ${TEST_APPLICATION}.json)
-    configure_file(
-        ${NETWORK_TEST_SRC_DIR}/application_tests/conf/${TEST_APPLICATION_CONFIGURATION_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/application_tests/${TEST_APPLICATION_CONFIGURATION_FILE}
-        @ONLY)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/application_tests/${TEST_APPLICATION_CONFIGURATION_FILE}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_APPLICATION_CONFIGURATION_FILE}
-        ${TEST_APPLICATION}
-    )
-
-    set(TEST_APPLICATION_CONFIGURATION_FILE_DAEMON ${TEST_APPLICATION}_daemon.json)
-    configure_file(
-        ${NETWORK_TEST_SRC_DIR}/application_tests/conf/${TEST_APPLICATION_CONFIGURATION_FILE_DAEMON}.in
-        ${NETWORK_TEST_SRC_DIR}/application_tests/${TEST_APPLICATION_CONFIGURATION_FILE_DAEMON}
-        @ONLY)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/application_tests/${TEST_APPLICATION_CONFIGURATION_FILE_DAEMON}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_APPLICATION_CONFIGURATION_FILE_DAEMON}
-        ${TEST_APPLICATION}
-    )
-
-    set(TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE ${TEST_APPLICATION}_no_dispatch_threads.json)
-    configure_file(
-        ${NETWORK_TEST_SRC_DIR}/application_tests/conf/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/application_tests/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE}
-        @ONLY)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/application_tests/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE}
-        ${TEST_APPLICATION}
-    )
-
-    set(TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE_DAEMON ${TEST_APPLICATION}_no_dispatch_threads_daemon.json)
-    configure_file(
-        ${NETWORK_TEST_SRC_DIR}/application_tests/conf/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE_DAEMON}.in
-        ${NETWORK_TEST_SRC_DIR}/application_tests/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE_DAEMON}
-        @ONLY)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/application_tests/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE_DAEMON}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE_DAEMON}
-        ${TEST_APPLICATION}
-    )
-
-    set(TEST_APPLICATION_STARTER ${TEST_APPLICATION}_starter.sh)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/application_tests/${TEST_APPLICATION_STARTER}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_APPLICATION_STARTER}
-        ${TEST_APPLICATION}
     )
 
     set(TEST_APPLICATION_SINGLE_PROCESS_STARTER ${TEST_APPLICATION}_single_process_starter.sh)
@@ -196,6 +159,60 @@ if(NOT ${TESTS_BAT})
         ${TEST_APPLICATION_SINGLE_PROCESS_NAME}
     )
 endif()
+
+set(TEST_APPLICATION_CONFIGURATION_FILE ${TEST_APPLICATION}.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/application_tests/conf/${TEST_APPLICATION_CONFIGURATION_FILE}.in
+    ${NETWORK_TEST_SRC_DIR}/application_tests/${TEST_APPLICATION_CONFIGURATION_FILE}
+    @ONLY)
+copy_to_builddir(${NETWORK_TEST_SRC_DIR}/application_tests/${TEST_APPLICATION_CONFIGURATION_FILE}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_APPLICATION_CONFIGURATION_FILE}
+    ${TEST_APPLICATION}
+)
+
+set(TEST_APPLICATION_CONFIGURATION_FILE_DAEMON ${TEST_APPLICATION}_daemon.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/application_tests/conf/${TEST_APPLICATION_CONFIGURATION_FILE_DAEMON}.in
+    ${NETWORK_TEST_SRC_DIR}/application_tests/${TEST_APPLICATION_CONFIGURATION_FILE_DAEMON}
+    @ONLY)
+copy_to_builddir(${NETWORK_TEST_SRC_DIR}/application_tests/${TEST_APPLICATION_CONFIGURATION_FILE_DAEMON}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_APPLICATION_CONFIGURATION_FILE_DAEMON}
+    ${TEST_APPLICATION}
+)
+
+set(TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE ${TEST_APPLICATION}_no_dispatch_threads.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/application_tests/conf/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE}.in
+    ${NETWORK_TEST_SRC_DIR}/application_tests/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE}
+    @ONLY)
+copy_to_builddir(${NETWORK_TEST_SRC_DIR}/application_tests/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE}
+    ${TEST_APPLICATION}
+)
+
+set(TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE_DAEMON ${TEST_APPLICATION}_no_dispatch_threads_daemon.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/application_tests/conf/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE_DAEMON}.in
+    ${NETWORK_TEST_SRC_DIR}/application_tests/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE_DAEMON}
+    @ONLY)
+copy_to_builddir(${NETWORK_TEST_SRC_DIR}/application_tests/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE_DAEMON}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_APPLICATION_NO_DISPATCH_CONFIGURATION_FILE_DAEMON}
+    ${TEST_APPLICATION}
+)
+
+set(TEST_APPLICATION_STARTER ${TEST_APPLICATION}_starter.sh)
+    if(${TESTS_BAT})
+        configure_file(
+            ${NETWORK_TEST_SRC_DIR}/application_tests/conf/${TEST_APPLICATION_STARTER}.bat.in
+            ${NETWORK_TEST_SRC_DIR}/application_tests/${TEST_APPLICATION_STARTER}
+            @ONLY)
+    endif()
+
+copy_to_builddir(${NETWORK_TEST_SRC_DIR}/application_tests/${TEST_APPLICATION_STARTER}
+${NETWORK_TEST_BIN_DIR}/${TEST_APPLICATION_STARTER}
+${TEST_APPLICATION}
+)
+
 ##############################################################################
 # magic-cookies-test-client
 ##############################################################################
@@ -210,6 +227,8 @@ if(NOT ${TESTS_BAT})
         ${DL_LIBRARY}
         ${CMAKE_THREAD_LIBS_INIT}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_MAGIC_COOKIES_SERVICE ${TEST_MAGIC_COOKIES_NAME}_service)
@@ -218,8 +237,10 @@ if(NOT ${TESTS_BAT})
         ${VSOMEIP_NAME}
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
+        ${DLT_LIBRARIES}
         ${CMAKE_THREAD_LIBS_INIT}
         ${TEST_LINK_LIBRARIES}
+        vsomeip_utilities
     )
 
     # Copy config file for client into $BUILDDIR/test
@@ -269,77 +290,90 @@ endif()
 ##############################################################################
 # someip-header-factory-test
 ##############################################################################
-if(NOT ${TESTS_BAT})
-    set(TEST_HEADER_FACTORY_NAME header_factory_test)
+set(TEST_HEADER_FACTORY_NAME header_factory_test)
 
-    set(TEST_HEADER_FACTORY header_factory_test)
-    add_executable(${TEST_HEADER_FACTORY} header_factory_tests/header_factory_test.cpp)
-    target_link_libraries(${TEST_HEADER_FACTORY}
-        ${VSOMEIP_NAME}
-        ${Boost_LIBRARIES}
-        ${DL_LIBRARY}
-        ${CMAKE_THREAD_LIBS_INIT}
-        ${TEST_LINK_LIBRARIES}
-    )
+set(TEST_HEADER_FACTORY header_factory_test)
+add_executable(${TEST_HEADER_FACTORY} header_factory_tests/header_factory_test.cpp)
+target_link_libraries(${TEST_HEADER_FACTORY}
+    ${VSOMEIP_NAME}
+    ${Boost_LIBRARIES}
+    ${DL_LIBRARY}
+    ${CMAKE_THREAD_LIBS_INIT}
+    ${TEST_LINK_LIBRARIES}
+    ${DLT_LIBRARIES}
+    vsomeip_utilities
+)
 
-    ##############################################################################
-    # Now comes the second part of the header factory test which consists of ouf
-    # a client and a service both with settings file and bash scripts to start them
-    set(TEST_HEADER_FACTORY_CLIENT header_factory_test_client)
-    add_executable(${TEST_HEADER_FACTORY_CLIENT} header_factory_tests/${TEST_HEADER_FACTORY_CLIENT}.cpp)
-    target_link_libraries(${TEST_HEADER_FACTORY_CLIENT}
-        ${VSOMEIP_NAME}
-        ${Boost_LIBRARIES}
-        ${DL_LIBRARY}
-        ${CMAKE_THREAD_LIBS_INIT}
-        ${TEST_LINK_LIBRARIES}
-    )
+##############################################################################
+# Now comes the second part of the header factory test which consists of a client
+# and a service both with settings file and bash scripts to start them
+set(TEST_HEADER_FACTORY_CLIENT header_factory_test_client)
+add_executable(${TEST_HEADER_FACTORY_CLIENT} header_factory_tests/${TEST_HEADER_FACTORY_CLIENT}.cpp)
+target_link_libraries(${TEST_HEADER_FACTORY_CLIENT}
+    ${VSOMEIP_NAME}
+    ${Boost_LIBRARIES}
+    ${DL_LIBRARY}
+    ${CMAKE_THREAD_LIBS_INIT}
+    ${TEST_LINK_LIBRARIES}
+    ${DLT_LIBRARIES}
+    vsomeip_utilities
+)
 
-    # Copy config file for client into $BUILDDIR/test
-    set(TEST_HEADER_FACTORY_CLIENT_CONFIG_FILE ${TEST_HEADER_FACTORY_CLIENT}.json)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/header_factory_tests/${TEST_HEADER_FACTORY_CLIENT_CONFIG_FILE}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_HEADER_FACTORY_CLIENT_CONFIG_FILE}
-        ${TEST_HEADER_FACTORY_CLIENT}
-    )
+# Copy config file for client into $BUILDDIR/test
+set(TEST_HEADER_FACTORY_CLIENT_CONFIG_FILE ${TEST_HEADER_FACTORY_CLIENT}.json)
+copy_to_builddir(${NETWORK_TEST_SRC_DIR}/header_factory_tests/${TEST_HEADER_FACTORY_CLIENT_CONFIG_FILE}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_HEADER_FACTORY_CLIENT_CONFIG_FILE}
+    ${TEST_HEADER_FACTORY_CLIENT}
+)
 
-    # Copy bashscript to start client into $BUILDDIR/test
-    set(TEST_HEADER_FACTORY_CLIENT_START_SCRIPT ${TEST_HEADER_FACTORY_CLIENT}_start.sh)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/header_factory_tests/${TEST_HEADER_FACTORY_CLIENT_START_SCRIPT}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_HEADER_FACTORY_CLIENT_START_SCRIPT}
-        ${TEST_HEADER_FACTORY_CLIENT}
-    )
+# Copy bashscript to start client into $BUILDDIR/test
+set(TEST_HEADER_FACTORY_CLIENT_START_SCRIPT ${TEST_HEADER_FACTORY_CLIENT}_start.sh)
+copy_to_builddir(${NETWORK_TEST_SRC_DIR}/header_factory_tests/${TEST_HEADER_FACTORY_CLIENT_START_SCRIPT}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_HEADER_FACTORY_CLIENT_START_SCRIPT}
+    ${TEST_HEADER_FACTORY_CLIENT}
+)
 
-    set(TEST_HEADER_FACTORY_SERVICE header_factory_test_service)
-    add_executable(${TEST_HEADER_FACTORY_SERVICE} header_factory_tests/${TEST_HEADER_FACTORY_SERVICE}.cpp)
-    target_link_libraries(${TEST_HEADER_FACTORY_SERVICE}
-        ${VSOMEIP_NAME}
-        ${Boost_LIBRARIES}
-        ${DL_LIBRARY}
-        ${CMAKE_THREAD_LIBS_INIT}
-        ${TEST_LINK_LIBRARIES}
-    )
+set(TEST_HEADER_FACTORY_SERVICE header_factory_test_service)
+add_executable(${TEST_HEADER_FACTORY_SERVICE} header_factory_tests/${TEST_HEADER_FACTORY_SERVICE}.cpp)
+target_link_libraries(${TEST_HEADER_FACTORY_SERVICE}
+    ${VSOMEIP_NAME}
+    ${Boost_LIBRARIES}
+    ${DL_LIBRARY}
+    ${CMAKE_THREAD_LIBS_INIT}
+    ${TEST_LINK_LIBRARIES}
+    ${DLT_LIBRARIES}
+    vsomeip_utilities
+)
 
-    # Copy config file for service into $BUILDDIR/test
-    set(TEST_HEADER_FACTORY_SERVICE_CONFIG_FILE ${TEST_HEADER_FACTORY_SERVICE}.json)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/header_factory_tests/${TEST_HEADER_FACTORY_SERVICE_CONFIG_FILE}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_HEADER_FACTORY_SERVICE_CONFIG_FILE}
-        ${TEST_HEADER_FACTORY_SERVICE}
-    )
+# Copy config file for service into $BUILDDIR/test
+set(TEST_HEADER_FACTORY_SERVICE_CONFIG_FILE ${TEST_HEADER_FACTORY_SERVICE}.json)
+copy_to_builddir(${NETWORK_TEST_SRC_DIR}/header_factory_tests/${TEST_HEADER_FACTORY_SERVICE_CONFIG_FILE}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_HEADER_FACTORY_SERVICE_CONFIG_FILE}
+    ${TEST_HEADER_FACTORY_SERVICE}
+)
 
-    # Copy bashscript to start service into $BUILDDIR/test
-    set(TEST_HEADER_FACTORY_SERVICE_START_SCRIPT ${TEST_HEADER_FACTORY_SERVICE}_start.sh)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/header_factory_tests/${TEST_HEADER_FACTORY_SERVICE_START_SCRIPT}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_HEADER_FACTORY_SERVICE_START_SCRIPT}
-        ${TEST_HEADER_FACTORY_SERVICE}
-    )
+# Copy bashscript to start service into $BUILDDIR/test
+set(TEST_HEADER_FACTORY_SERVICE_START_SCRIPT ${TEST_HEADER_FACTORY_SERVICE}_start.sh)
+copy_to_builddir(${NETWORK_TEST_SRC_DIR}/header_factory_tests/${TEST_HEADER_FACTORY_SERVICE_START_SCRIPT}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_HEADER_FACTORY_SERVICE_START_SCRIPT}
+    ${TEST_HEADER_FACTORY_SERVICE}
+)
 
-    # Copy bashscript to start client and server $BUILDDIR/test
-    set(TEST_HEADER_FACTORY_STARTER header_factory_test_send_receive_starter.sh)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/header_factory_tests/${TEST_HEADER_FACTORY_STARTER}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_HEADER_FACTORY_STARTER}
-        ${TEST_HEADER_FACTORY_CLIENT}
-    )
+# Copy bashscript to start client and server $BUILDDIR/test
+set(TEST_HEADER_FACTORY_STARTER header_factory_test_send_receive_starter.sh)
+
+if(${TESTS_BAT})
+    configure_file(
+        ${NETWORK_TEST_SRC_DIR}/header_factory_tests/conf/${TEST_HEADER_FACTORY_STARTER}.bat.in
+        ${NETWORK_TEST_SRC_DIR}/header_factory_tests/${TEST_HEADER_FACTORY_STARTER}
+        @ONLY)
 endif()
+
+copy_to_builddir(${NETWORK_TEST_SRC_DIR}/header_factory_tests/${TEST_HEADER_FACTORY_STARTER}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_HEADER_FACTORY_STARTER}
+    ${TEST_HEADER_FACTORY_CLIENT}
+)
+
 ##############################################################################
 # routing-test
 ##############################################################################
@@ -354,6 +388,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # Copy config file for service into $BUILDDIR/test
@@ -377,6 +413,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # Copy config file for client into $BUILDDIR/test
@@ -394,7 +432,11 @@ if(NOT ${TESTS_BAT})
     )
 
     # Copy bashscript to start client and server $BUILDDIR/test
-    set(TEST_LOCAL_ROUTING_STARTER local_routing_test_starter.sh)
+    if (${CMAKE_SYSTEM_NAME} MATCHES "QNX")
+        set(TEST_LOCAL_ROUTING_STARTER local_routing_test_starter_qnx.sh)
+    else()
+        set(TEST_LOCAL_ROUTING_STARTER local_routing_test_starter.sh)
+    endif()
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/routing_tests/conf/${TEST_LOCAL_ROUTING_STARTER}.in
         ${NETWORK_TEST_SRC_DIR}/routing_tests/${TEST_LOCAL_ROUTING_STARTER}
@@ -413,6 +455,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # Copy config file for service into $BUILDDIR/test
@@ -471,6 +515,8 @@ else()
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # Copy config file for service into $BUILDDIR/test
@@ -494,6 +540,8 @@ else()
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # Copy config file for client into $BUILDDIR/test
@@ -535,6 +583,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # Copy config file for service into $BUILDDIR/test
@@ -562,6 +612,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # Copy config file for client into $BUILDDIR/test
@@ -612,6 +664,8 @@ if (${TEST_SECURITY})
             ${Boost_LIBRARIES}
             ${DL_LIBRARY}
             ${TEST_LINK_LIBRARIES}
+            ${DLT_LIBRARIES}
+            vsomeip_utilities
         )
 
         # Copy config file for service into $BUILDDIR/test
@@ -706,6 +760,8 @@ if (${TEST_SECURITY})
             ${Boost_LIBRARIES}
             ${DL_LIBRARY}
             ${TEST_LINK_LIBRARIES}
+            ${DLT_LIBRARIES}
+            vsomeip_utilities
         )
     endif()
 endif()
@@ -714,540 +770,577 @@ endif()
 # payload-test
 ##############################################################################
 
-if(NOT ${TESTS_BAT})
-    set(TEST_LOCAL_PAYLOAD_NAME local_payload_test)
+set(TEST_LOCAL_PAYLOAD_NAME local_payload_test)
 
-    set(TEST_PAYLOAD_SERVICE payload_test_service)
-    add_executable(${TEST_PAYLOAD_SERVICE} payload_tests/${TEST_PAYLOAD_SERVICE}.cpp)
-    target_link_libraries(${TEST_PAYLOAD_SERVICE}
-        ${VSOMEIP_NAME}
-        ${Boost_LIBRARIES}
-        ${DL_LIBRARY}
-        ${TEST_LINK_LIBRARIES}
-    )
+set(TEST_PAYLOAD_SERVICE payload_test_service)
+add_executable(${TEST_PAYLOAD_SERVICE} payload_tests/${TEST_PAYLOAD_SERVICE}.cpp)
+target_link_libraries(${TEST_PAYLOAD_SERVICE}
+    ${VSOMEIP_NAME}
+    ${Boost_LIBRARIES}
+    ${DL_LIBRARY}
+    ${TEST_LINK_LIBRARIES}
+    ${DLT_LIBRARIES}
+    vsomeip_utilities
+)
 
-    # Copy config file for service into $BUILDDIR/test
-    set(TEST_LOCAL_PAYLOAD_SERVICE_CONFIG_FILE local_${TEST_PAYLOAD_SERVICE}.json)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_LOCAL_PAYLOAD_SERVICE_CONFIG_FILE}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_PAYLOAD_SERVICE_CONFIG_FILE}
-        ${TEST_PAYLOAD_SERVICE}
-    )
+# Copy config file for service into $BUILDDIR/test
+set(TEST_LOCAL_PAYLOAD_SERVICE_CONFIG_FILE local_${TEST_PAYLOAD_SERVICE}.json)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_LOCAL_PAYLOAD_SERVICE_CONFIG_FILE}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_PAYLOAD_SERVICE_CONFIG_FILE}
+    ${TEST_PAYLOAD_SERVICE}
+)
 
-    # Copy bashscript to start service into $BUILDDIR/test
-    set(TEST_LOCAL_PAYLOAD_SERVICE_START_SCRIPT local_${TEST_PAYLOAD_SERVICE}_start.sh)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_LOCAL_PAYLOAD_SERVICE_START_SCRIPT}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_PAYLOAD_SERVICE_START_SCRIPT}
-        ${TEST_PAYLOAD_SERVICE}
-    )
+# Copy bashscript to start service into $BUILDDIR/test
+set(TEST_LOCAL_PAYLOAD_SERVICE_START_SCRIPT local_${TEST_PAYLOAD_SERVICE}_start.sh)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_LOCAL_PAYLOAD_SERVICE_START_SCRIPT}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_PAYLOAD_SERVICE_START_SCRIPT}
+    ${TEST_PAYLOAD_SERVICE}
+)
 
-    set(TEST_PAYLOAD_CLIENT payload_test_client)
-    add_executable(${TEST_PAYLOAD_CLIENT}
-        payload_tests/${TEST_PAYLOAD_CLIENT}.cpp
-        payload_tests/stopwatch.cpp
-    )
-    target_link_libraries(${TEST_PAYLOAD_CLIENT}
-        ${VSOMEIP_NAME}
-        ${Boost_LIBRARIES}
-        ${DL_LIBRARY}
-        ${TEST_LINK_LIBRARIES}
-    )
+set(TEST_PAYLOAD_CLIENT payload_test_client)
+add_executable(${TEST_PAYLOAD_CLIENT}
+    payload_tests/${TEST_PAYLOAD_CLIENT}.cpp
+    payload_tests/stopwatch.cpp
+)
+target_link_libraries(${TEST_PAYLOAD_CLIENT}
+    ${VSOMEIP_NAME}
+    ${Boost_LIBRARIES}
+    ${DL_LIBRARY}
+    ${TEST_LINK_LIBRARIES}
+    ${DLT_LIBRARIES}
+    vsomeip_utilities
+)
 
-    # Copy config file for client into $BUILDDIR/test
-    set(TEST_LOCAL_PAYLOAD_CLIENT_CONFIG_FILE local_${TEST_PAYLOAD_CLIENT}.json)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_LOCAL_PAYLOAD_CLIENT_CONFIG_FILE}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_PAYLOAD_CLIENT_CONFIG_FILE}
-        ${TEST_PAYLOAD_CLIENT}
-    )
+# Copy config file for client into $BUILDDIR/test
+set(TEST_LOCAL_PAYLOAD_CLIENT_CONFIG_FILE local_${TEST_PAYLOAD_CLIENT}.json)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_LOCAL_PAYLOAD_CLIENT_CONFIG_FILE}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_PAYLOAD_CLIENT_CONFIG_FILE}
+    ${TEST_PAYLOAD_CLIENT}
+)
 
-    # Copy bashscript to start client into $BUILDDIR/test
-    set(TEST_LOCAL_PAYLOAD_CLIENT_START_SCRIPT local_${TEST_PAYLOAD_CLIENT}_start.sh)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_LOCAL_PAYLOAD_CLIENT_START_SCRIPT}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_PAYLOAD_CLIENT_START_SCRIPT}
-        ${TEST_PAYLOAD_CLIENT}
-    )
+# Copy bashscript to start client into $BUILDDIR/test
+set(TEST_LOCAL_PAYLOAD_CLIENT_START_SCRIPT local_${TEST_PAYLOAD_CLIENT}_start.sh)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_LOCAL_PAYLOAD_CLIENT_START_SCRIPT}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_PAYLOAD_CLIENT_START_SCRIPT}
+    ${TEST_PAYLOAD_CLIENT}
+)
 
-    # Copy bashscript to start client and server $BUILDDIR/test
-    set(TEST_LOCAL_PAYLOAD_STARTER local_payload_test_starter.sh)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_LOCAL_PAYLOAD_STARTER}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_PAYLOAD_STARTER}
-        ${TEST_PAYLOAD_CLIENT}
-    )
+# Copy bashscript to start client and server $BUILDDIR/test
+set(TEST_LOCAL_PAYLOAD_STARTER local_payload_test_starter.sh)
 
-    ##############################################################################
-    set(TEST_EXTERNAL_LOCAL_PAYLOAD_NAME external_local_payload_test)
-    set(TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE external_local_payload_test_service)
-
-    # Copy config file for service into $BUILDDIR/test
-    set(TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CONFIG_FILE ${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE}.json)
+if(${TESTS_BAT})
     configure_file(
-        ${NETWORK_TEST_SRC_DIR}/payload_tests/conf/${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CONFIG_FILE}
+        ${NETWORK_TEST_SRC_DIR}/payload_tests/conf/${TEST_LOCAL_PAYLOAD_STARTER}.bat.in
+        ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_LOCAL_PAYLOAD_STARTER}
         @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CONFIG_FILE}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CONFIG_FILE}
-        ${TEST_PAYLOAD_SERVICE}
-    )
-
-    # Copy bashscript to start service into $BUILDDIR/test
-    set(TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_START_SCRIPT ${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE}_start.sh)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_START_SCRIPT}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_START_SCRIPT}
-        ${TEST_PAYLOAD_SERVICE}
-    )
-
-    set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL external_local_payload_test_client_local)
-
-    # Copy config file for client into $BUILDDIR/test
-    set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_CONFIG_FILE ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL}.json)
-    configure_file(
-        ${NETWORK_TEST_SRC_DIR}/payload_tests/conf/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_CONFIG_FILE}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_CONFIG_FILE}
-        ${TEST_PAYLOAD_CLIENT}
-    )
-
-    # Copy bashscript to start client into $BUILDDIR/test
-    set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_START_SCRIPT ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL}_start.sh)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_START_SCRIPT}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_START_SCRIPT}
-        ${TEST_PAYLOAD_CLIENT}
-    )
-
-    # Copy bashscript to start client and server $BUILDDIR/test
-    set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_NAME external_local_payload_test_client_local)
-    set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_STARTER ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_NAME}_starter.sh)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_STARTER}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_STARTER}
-        ${TEST_PAYLOAD_CLIENT}
-    )
-    ##############################################################################
-    set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_NAME external_local_payload_test_client_external)
-    set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL external_local_payload_test_client_external)
-
-    # Copy config file for client into $BUILDDIR/test
-    set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_CONFIG_FILE ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL}.json)
-    configure_file(
-        ${NETWORK_TEST_SRC_DIR}/payload_tests/conf/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_CONFIG_FILE}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_CONFIG_FILE}
-        ${TEST_PAYLOAD_CLIENT}
-    )
-
-    # Copy bashscript to start client into $BUILDDIR/test
-    set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_START_SCRIPT ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL}_start.sh)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_START_SCRIPT}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_START_SCRIPT}
-        ${TEST_PAYLOAD_CLIENT}
-    )
-
-    set(TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CLIENT_EXTERNAL external_local_payload_test_service_client_external)
-
-    # Copy bashscript to start service into $BUILDDIR/test
-    set(TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CLIENTT_EXTERNAL_START_SCRIPT ${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CLIENT_EXTERNAL}_start.sh)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CLIENTT_EXTERNAL_START_SCRIPT}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CLIENTT_EXTERNAL_START_SCRIPT}
-        ${TEST_PAYLOAD_SERVICE}
-    )
-
-    # Copy bashscript to start client and server $BUILDDIR/test
-    set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_STARTER ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_NAME}_starter.sh)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_STARTER}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_STARTER}
-        ${TEST_PAYLOAD_CLIENT}
-    )
-
-    ##############################################################################
-    # Copy bashscript to start client and server $BUILDDIR/test
-    set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_AND_EXTERNAL_NAME external_local_payload_test_client_local_and_external)
-    set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_AND_EXTERNAL_STARTER ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_AND_EXTERNAL_NAME}_starter.sh)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_AND_EXTERNAL_STARTER}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_AND_EXTERNAL_STARTER}
-        ${TEST_PAYLOAD_CLIENT}
-    )
-
-    ##############################################################################
-    set(TEST_LOCAL_PAYLOAD_HUGE_NAME local_payload_test_huge_payload)
-    # Copy bashscript to start client and server $BUILDDIR/test
-    set(TEST_LOCAL_PAYLOAD_HUGE_STARTER ${TEST_LOCAL_PAYLOAD_HUGE_NAME}_starter.sh)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_LOCAL_PAYLOAD_HUGE_STARTER}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_PAYLOAD_HUGE_STARTER}
-        ${TEST_PAYLOAD_CLIENT}
-    )
 endif()
+
+copy_to_builddir(${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_LOCAL_PAYLOAD_STARTER}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_PAYLOAD_STARTER}
+    ${TEST_PAYLOAD_CLIENT}
+)
+
+##############################################################################
+set(TEST_EXTERNAL_LOCAL_PAYLOAD_NAME external_local_payload_test)
+set(TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE external_local_payload_test_service)
+
+# Copy config file for service into $BUILDDIR/test
+set(TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CONFIG_FILE ${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE}.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/payload_tests/conf/${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CONFIG_FILE}.in
+    ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CONFIG_FILE}
+    @ONLY)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CONFIG_FILE}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CONFIG_FILE}
+    ${TEST_PAYLOAD_SERVICE}
+)
+
+# Copy bashscript to start service into $BUILDDIR/test
+set(TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_START_SCRIPT ${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE}_start.sh)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_START_SCRIPT}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_START_SCRIPT}
+    ${TEST_PAYLOAD_SERVICE}
+)
+
+set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL external_local_payload_test_client_local)
+
+# Copy config file for client into $BUILDDIR/test
+set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_CONFIG_FILE ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL}.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/payload_tests/conf/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_CONFIG_FILE}.in
+    ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_CONFIG_FILE}
+    @ONLY)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_CONFIG_FILE}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_CONFIG_FILE}
+    ${TEST_PAYLOAD_CLIENT}
+)
+
+# Copy bashscript to start client into $BUILDDIR/test
+set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_START_SCRIPT ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL}_start.sh)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_START_SCRIPT}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_START_SCRIPT}
+    ${TEST_PAYLOAD_CLIENT}
+)
+
+# Copy bashscript to start client and server $BUILDDIR/test
+set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_NAME external_local_payload_test_client_local)
+set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_STARTER ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_NAME}_starter.sh)
+
+if(${TESTS_BAT})
+    configure_file(
+        ${NETWORK_TEST_SRC_DIR}/payload_tests/conf/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_STARTER}.bat.in
+        ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_STARTER}
+        @ONLY)
+endif()
+
+copy_to_builddir(${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_STARTER}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_STARTER}
+    ${TEST_PAYLOAD_CLIENT}
+)
+##############################################################################
+set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_NAME external_local_payload_test_client_external)
+set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL external_local_payload_test_client_external)
+
+# Copy config file for client into $BUILDDIR/test
+set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_CONFIG_FILE ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL}.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/payload_tests/conf/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_CONFIG_FILE}.in
+    ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_CONFIG_FILE}
+    @ONLY)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_CONFIG_FILE}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_CONFIG_FILE}
+    ${TEST_PAYLOAD_CLIENT}
+)
+
+# Copy bashscript to start client into $BUILDDIR/test
+set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_START_SCRIPT ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL}_start.sh)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_START_SCRIPT}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_START_SCRIPT}
+    ${TEST_PAYLOAD_CLIENT}
+)
+
+set(TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CLIENT_EXTERNAL external_local_payload_test_service_client_external)
+
+# Copy bashscript to start service into $BUILDDIR/test
+set(TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CLIENTT_EXTERNAL_START_SCRIPT ${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CLIENT_EXTERNAL}_start.sh)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CLIENTT_EXTERNAL_START_SCRIPT}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_LOCAL_PAYLOAD_SERVICE_CLIENTT_EXTERNAL_START_SCRIPT}
+    ${TEST_PAYLOAD_SERVICE}
+)
+
+# Copy bashscript to start client and server $BUILDDIR/test
+set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_STARTER ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_NAME}_starter.sh)
+copy_to_builddir(${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_STARTER}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_EXTERNAL_STARTER}
+    ${TEST_PAYLOAD_CLIENT}
+)
+
+##############################################################################
+# Copy bashscript to start client and server $BUILDDIR/test
+set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_AND_EXTERNAL_NAME external_local_payload_test_client_local_and_external)
+set(TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_AND_EXTERNAL_STARTER ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_AND_EXTERNAL_NAME}_starter.sh)
+copy_to_builddir(${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_AND_EXTERNAL_STARTER}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_AND_EXTERNAL_STARTER}
+    ${TEST_PAYLOAD_CLIENT}
+)
+
+##############################################################################
+set(TEST_LOCAL_PAYLOAD_HUGE_NAME local_payload_test_huge_payload)
+# Copy bashscript to start client and server $BUILDDIR/test
+set(TEST_LOCAL_PAYLOAD_HUGE_STARTER ${TEST_LOCAL_PAYLOAD_HUGE_NAME}_starter.sh)
+
+if(${TESTS_BAT})
+    configure_file(
+        ${NETWORK_TEST_SRC_DIR}/payload_tests/conf/${TEST_LOCAL_PAYLOAD_HUGE_STARTER}.bat.in
+        ${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_LOCAL_PAYLOAD_HUGE_STARTER}
+        @ONLY)
+endif()
+
+copy_to_builddir(${NETWORK_TEST_SRC_DIR}/payload_tests/${TEST_LOCAL_PAYLOAD_HUGE_STARTER}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_PAYLOAD_HUGE_STARTER}
+    ${TEST_PAYLOAD_CLIENT}
+)
 
 ##############################################################################
 # big_payload_test
 ##############################################################################
-if(NOT ${TESTS_BAT})
-    set(TEST_BIG_PAYLOAD_NAME big_payload_test)
 
-    set(TEST_BIG_PAYLOAD_SERVICE big_payload_test_service)
-    add_executable(${TEST_BIG_PAYLOAD_SERVICE} big_payload_tests/${TEST_BIG_PAYLOAD_SERVICE}.cpp)
-    target_link_libraries(${TEST_BIG_PAYLOAD_SERVICE}
-        ${VSOMEIP_NAME}
-        ${Boost_LIBRARIES}
-        ${DL_LIBRARY}
-        ${TEST_LINK_LIBRARIES}
-    )
+set(TEST_BIG_PAYLOAD_NAME big_payload_test)
 
-    set(TEST_BIG_PAYLOAD_CLIENT big_payload_test_client)
-    add_executable(${TEST_BIG_PAYLOAD_CLIENT} big_payload_tests/${TEST_BIG_PAYLOAD_CLIENT}.cpp)
-    target_link_libraries(${TEST_BIG_PAYLOAD_CLIENT}
-        ${VSOMEIP_NAME}
-        ${Boost_LIBRARIES}
-        ${DL_LIBRARY}
-        ${TEST_LINK_LIBRARIES}
-    )
+set(TEST_BIG_PAYLOAD_SERVICE big_payload_test_service)
+add_executable(${TEST_BIG_PAYLOAD_SERVICE} big_payload_tests/${TEST_BIG_PAYLOAD_SERVICE}.cpp)
+target_link_libraries(${TEST_BIG_PAYLOAD_SERVICE}
+    ${VSOMEIP_NAME}
+    ${Boost_LIBRARIES}
+    ${DL_LIBRARY}
+    ${TEST_LINK_LIBRARIES}
+    ${DLT_LIBRARIES}
+    vsomeip_utilities
+)
 
-    # Copy config file for client and service into $BUILDDIR/test
-    set(TEST_LOCAL_BIG_PAYLOAD_CONFIG_FILE ${TEST_BIG_PAYLOAD_NAME}_local.json)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_BIG_PAYLOAD_CONFIG_FILE}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_BIG_PAYLOAD_CONFIG_FILE}
-        ${TEST_BIG_PAYLOAD_SERVICE}
-    )
+set(TEST_BIG_PAYLOAD_CLIENT big_payload_test_client)
+add_executable(${TEST_BIG_PAYLOAD_CLIENT} big_payload_tests/${TEST_BIG_PAYLOAD_CLIENT}.cpp)
+target_link_libraries(${TEST_BIG_PAYLOAD_CLIENT}
+    ${VSOMEIP_NAME}
+    ${Boost_LIBRARIES}
+    ${DL_LIBRARY}
+    ${TEST_LINK_LIBRARIES}
+    ${DLT_LIBRARIES}
+    vsomeip_utilities
+)
 
-    # Copy config file for client and service into $BUILDDIR/test
-    set(TEST_QUEUE_LIMITED_LOCAL_BIG_PAYLOAD_CONFIG_FILE ${TEST_BIG_PAYLOAD_NAME}_local_queue_limited.json)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_QUEUE_LIMITED_LOCAL_BIG_PAYLOAD_CONFIG_FILE}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_QUEUE_LIMITED_LOCAL_BIG_PAYLOAD_CONFIG_FILE}
-        ${TEST_BIG_PAYLOAD_SERVICE}
-    )
+# Copy config file for client and service into $BUILDDIR/test
+set(TEST_LOCAL_BIG_PAYLOAD_CONFIG_FILE ${TEST_BIG_PAYLOAD_NAME}_local.json)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_BIG_PAYLOAD_CONFIG_FILE}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_BIG_PAYLOAD_CONFIG_FILE}
+    ${TEST_BIG_PAYLOAD_SERVICE}
+)
 
-    # Copy config file for client and service into $BUILDDIR/test
-    set(TEST_LOCAL_BIG_PAYLOAD_CONFIG_FILE_RANDOM ${TEST_BIG_PAYLOAD_NAME}_local_random.json)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_BIG_PAYLOAD_CONFIG_FILE_RANDOM}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_BIG_PAYLOAD_CONFIG_FILE_RANDOM}
-        ${TEST_BIG_PAYLOAD_SERVICE}
-    )
+# Copy config file for client and service into $BUILDDIR/test
+set(TEST_QUEUE_LIMITED_LOCAL_BIG_PAYLOAD_CONFIG_FILE ${TEST_BIG_PAYLOAD_NAME}_local_queue_limited.json)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_QUEUE_LIMITED_LOCAL_BIG_PAYLOAD_CONFIG_FILE}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_QUEUE_LIMITED_LOCAL_BIG_PAYLOAD_CONFIG_FILE}
+    ${TEST_BIG_PAYLOAD_SERVICE}
+)
 
-    # Copy config file for client and service into $BUILDDIR/test
-    set(TEST_LOCAL_BIG_PAYLOAD_CONFIG_FILE_LIMITED ${TEST_BIG_PAYLOAD_NAME}_local_limited.json)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_BIG_PAYLOAD_CONFIG_FILE_LIMITED}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_BIG_PAYLOAD_CONFIG_FILE_LIMITED}
-        ${TEST_BIG_PAYLOAD_SERVICE}
-    )
+# Copy config file for client and service into $BUILDDIR/test
+set(TEST_LOCAL_BIG_PAYLOAD_CONFIG_FILE_RANDOM ${TEST_BIG_PAYLOAD_NAME}_local_random.json)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_BIG_PAYLOAD_CONFIG_FILE_RANDOM}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_BIG_PAYLOAD_CONFIG_FILE_RANDOM}
+    ${TEST_BIG_PAYLOAD_SERVICE}
+)
 
-    # Copy config file for client and service into $BUILDDIR/test
-    set(TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE ${TEST_BIG_PAYLOAD_NAME}_local_tcp_client.json)
+# Copy config file for client and service into $BUILDDIR/test
+set(TEST_LOCAL_BIG_PAYLOAD_CONFIG_FILE_LIMITED ${TEST_BIG_PAYLOAD_NAME}_local_limited.json)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_BIG_PAYLOAD_CONFIG_FILE_LIMITED}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_BIG_PAYLOAD_CONFIG_FILE_LIMITED}
+    ${TEST_BIG_PAYLOAD_SERVICE}
+)
+
+# Copy config file for client and service into $BUILDDIR/test
+set(TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE ${TEST_BIG_PAYLOAD_NAME}_local_tcp_client.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE}.in
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE}
+    @ONLY)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE}
+    ${TEST_BIG_PAYLOAD_CLIENT}
+)
+
+set(TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE ${TEST_BIG_PAYLOAD_NAME}_local_tcp_service.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE}.in
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE}
+    @ONLY)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE}
+    ${TEST_BIG_PAYLOAD_SERVICE}
+)
+
+# Copy config file for client and service into $BUILDDIR/test
+set(TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED ${TEST_BIG_PAYLOAD_NAME}_local_tcp_client_limited.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED}.in
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED}
+    @ONLY)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED}
+    ${TEST_BIG_PAYLOAD_CLIENT}
+)
+
+set(TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED ${TEST_BIG_PAYLOAD_NAME}_local_tcp_service_limited.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED}.in
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED}
+    @ONLY)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED}
+    ${TEST_BIG_PAYLOAD_SERVICE}
+)
+
+# Copy config file for client and service into $BUILDDIR/test
+set(TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED ${TEST_BIG_PAYLOAD_NAME}_local_tcp_client_queue_limited.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED}.in
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED}
+    @ONLY)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED}
+    ${TEST_BIG_PAYLOAD_CLIENT}
+)
+
+set(TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED ${TEST_BIG_PAYLOAD_NAME}_local_tcp_service_queue_limited.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED}.in
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED}
+    @ONLY)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED}
+    ${TEST_BIG_PAYLOAD_SERVICE}
+)
+
+# Copy config file for client and service into $BUILDDIR/test
+set(TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM ${TEST_BIG_PAYLOAD_NAME}_local_tcp_client_random.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM}.in
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM}
+    @ONLY)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM}
+    ${TEST_BIG_PAYLOAD_CLIENT}
+)
+
+set(TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM ${TEST_BIG_PAYLOAD_NAME}_local_tcp_service_random.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM}.in
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM}
+    @ONLY)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM}
+    ${TEST_BIG_PAYLOAD_SERVICE}
+)
+
+# Copy config file for client and service into $BUILDDIR/test
+set(TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE ${TEST_BIG_PAYLOAD_NAME}_tcp_client.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE}.in
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE}
+    @ONLY)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE}
+    ${TEST_BIG_PAYLOAD_CLIENT}
+)
+
+# Copy config file for client and service into $BUILDDIR/test
+set(TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE ${TEST_BIG_PAYLOAD_NAME}_tcp_service.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE}.in
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE}
+    @ONLY)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE}
+    ${TEST_BIG_PAYLOAD_SERVICE}
+)
+
+# Copy config file for client and service into $BUILDDIR/test
+set(TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED ${TEST_BIG_PAYLOAD_NAME}_tcp_client_limited_general.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED}.in
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED}
+    @ONLY)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED}
+    ${TEST_BIG_PAYLOAD_CLIENT}
+)
+
+# Copy config file for client and service into $BUILDDIR/test
+set(TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED ${TEST_BIG_PAYLOAD_NAME}_tcp_service_limited_general.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED}.in
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED}
+    @ONLY)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED}
+    ${TEST_BIG_PAYLOAD_SERVICE}
+)
+
+# Copy config file for client and service into $BUILDDIR/test
+set(TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM ${TEST_BIG_PAYLOAD_NAME}_tcp_client_random.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM}.in
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM}
+    @ONLY)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM}
+    ${TEST_BIG_PAYLOAD_CLIENT}
+)
+
+# Copy config file for client and service into $BUILDDIR/test
+set(TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM ${TEST_BIG_PAYLOAD_NAME}_tcp_service_random.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM}.in
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM}
+    @ONLY)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM}
+    ${TEST_BIG_PAYLOAD_SERVICE}
+)
+
+# Copy config file for client and service into $BUILDDIR/test
+set(TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_GENERAL ${TEST_BIG_PAYLOAD_NAME}_tcp_client_queue_limited_general.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_GENERAL}.in
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_GENERAL}
+    @ONLY)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_GENERAL}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_GENERAL}
+    ${TEST_BIG_PAYLOAD_CLIENT}
+)
+
+# Copy config file for client and service into $BUILDDIR/test
+set(TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_GENERAL ${TEST_BIG_PAYLOAD_NAME}_tcp_service_queue_limited_general.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_GENERAL}.in
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_GENERAL}
+    @ONLY)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_GENERAL}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_GENERAL}
+    ${TEST_BIG_PAYLOAD_SERVICE}
+)
+
+# Copy config file for client and service into $BUILDDIR/test
+set(TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC ${TEST_BIG_PAYLOAD_NAME}_tcp_client_queue_limited_specific.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC}.in
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC}
+    @ONLY)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC}
+    ${TEST_BIG_PAYLOAD_CLIENT}
+)
+
+# Copy config file for client and service into $BUILDDIR/test
+set(TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC ${TEST_BIG_PAYLOAD_NAME}_tcp_service_queue_limited_specific.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC}.in
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC}
+    @ONLY)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC}
+    ${TEST_BIG_PAYLOAD_SERVICE}
+)
+# Copy config file for UDP client and service into $BUILDDIR/test
+set(TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_UDP_CONFIG_FILE ${TEST_BIG_PAYLOAD_NAME}_udp_service.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_UDP_CONFIG_FILE}.in
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_UDP_CONFIG_FILE}
+    @ONLY)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_UDP_CONFIG_FILE}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_UDP_CONFIG_FILE}
+    ${TEST_BIG_PAYLOAD_SERVICE}
+)
+set(TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_UDP_CONFIG_FILE ${TEST_BIG_PAYLOAD_NAME}_udp_client.json)
+configure_file(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_UDP_CONFIG_FILE}.in
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_UDP_CONFIG_FILE}
+    @ONLY)
+copy_to_builddir(
+    ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_UDP_CONFIG_FILE}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_UDP_CONFIG_FILE}
+    ${TEST_BIG_PAYLOAD_CLIENT}
+)
+
+# Copy bashscript to start client local to $BUILDDIR/test
+set(TEST_LOCAL_BIG_PAYLOAD_CLIENT_START_SCRIPT ${TEST_BIG_PAYLOAD_NAME}_client_local_start.sh)
+copy_to_builddir(${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_BIG_PAYLOAD_CLIENT_START_SCRIPT}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_BIG_PAYLOAD_CLIENT_START_SCRIPT}
+    ${TEST_BIG_PAYLOAD_CLIENT}
+)
+
+# Copy bashscript to start service local to $BUILDDIR/test
+set(TEST_LOCAL_BIG_PAYLOAD_SERVICE_START_SCRIPT ${TEST_BIG_PAYLOAD_NAME}_service_local_start.sh)
+copy_to_builddir(${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_BIG_PAYLOAD_SERVICE_START_SCRIPT}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_BIG_PAYLOAD_SERVICE_START_SCRIPT}
+    ${TEST_BIG_PAYLOAD_SERVICE}
+)
+
+# Copy bashscript to start client and server $BUILDDIR/test
+set(TEST_LOCAL_BIG_PAYLOAD_NAME big_payload_test_local)
+set(TEST_LOCAL_BIG_PAYLOAD_NAME_RANDOM big_payload_test_local_random)
+set(TEST_LOCAL_BIG_PAYLOAD_NAME_LIMITED big_payload_test_local_limited)
+set(TEST_LOCAL_BIG_PAYLOAD_NAME_QUEUE_LIMITED big_payload_test_local_queue_limited)
+set(TEST_LOCAL_BIG_PAYLOAD_STARTER ${TEST_LOCAL_BIG_PAYLOAD_NAME}_starter.sh)
+
+if(${TESTS_BAT})
     configure_file(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE}
+        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_LOCAL_BIG_PAYLOAD_STARTER}.bat.in
+        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_BIG_PAYLOAD_STARTER}
         @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE}
-        ${TEST_BIG_PAYLOAD_CLIENT}
-    )
-
-    set(TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE ${TEST_BIG_PAYLOAD_NAME}_local_tcp_service.json)
-    configure_file(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE}
-        ${TEST_BIG_PAYLOAD_SERVICE}
-    )
-
-    # Copy config file for client and service into $BUILDDIR/test
-    set(TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED ${TEST_BIG_PAYLOAD_NAME}_local_tcp_client_limited.json)
-    configure_file(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED}.in
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED}
-        ${TEST_BIG_PAYLOAD_CLIENT}
-    )
-
-    set(TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED ${TEST_BIG_PAYLOAD_NAME}_local_tcp_service_limited.json)
-    configure_file(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED}.in
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED}
-        ${TEST_BIG_PAYLOAD_SERVICE}
-    )
-
-    # Copy config file for client and service into $BUILDDIR/test
-    set(TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED ${TEST_BIG_PAYLOAD_NAME}_local_tcp_client_queue_limited.json)
-    configure_file(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED}.in
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED}
-        ${TEST_BIG_PAYLOAD_CLIENT}
-    )
-
-    set(TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED ${TEST_BIG_PAYLOAD_NAME}_local_tcp_service_queue_limited.json)
-    configure_file(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED}.in
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED}
-        ${TEST_BIG_PAYLOAD_SERVICE}
-    )
-
-    # Copy config file for client and service into $BUILDDIR/test
-    set(TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM ${TEST_BIG_PAYLOAD_NAME}_local_tcp_client_random.json)
-    configure_file(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM}.in
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_TCP_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM}
-        ${TEST_BIG_PAYLOAD_CLIENT}
-    )
-
-    set(TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM ${TEST_BIG_PAYLOAD_NAME}_local_tcp_service_random.json)
-    configure_file(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM}.in
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM}
-        ${TEST_BIG_PAYLOAD_SERVICE}
-    )
-
-    # Copy config file for client and service into $BUILDDIR/test
-    set(TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE ${TEST_BIG_PAYLOAD_NAME}_tcp_client.json)
-    configure_file(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE}
-        ${TEST_BIG_PAYLOAD_CLIENT}
-    )
-
-    # Copy config file for client and service into $BUILDDIR/test
-    set(TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE ${TEST_BIG_PAYLOAD_NAME}_tcp_service.json)
-    configure_file(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE}
-        ${TEST_BIG_PAYLOAD_SERVICE}
-    )
-
-    # Copy config file for client and service into $BUILDDIR/test
-    set(TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED ${TEST_BIG_PAYLOAD_NAME}_tcp_client_limited_general.json)
-    configure_file(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED}.in
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_LIMITED}
-        ${TEST_BIG_PAYLOAD_CLIENT}
-    )
-
-    # Copy config file for client and service into $BUILDDIR/test
-    set(TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED ${TEST_BIG_PAYLOAD_NAME}_tcp_service_limited_general.json)
-    configure_file(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED}.in
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_LIMITED}
-        ${TEST_BIG_PAYLOAD_SERVICE}
-    )
-
-    # Copy config file for client and service into $BUILDDIR/test
-    set(TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM ${TEST_BIG_PAYLOAD_NAME}_tcp_client_random.json)
-    configure_file(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM}.in
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_RANDOM}
-        ${TEST_BIG_PAYLOAD_CLIENT}
-    )
-
-    # Copy config file for client and service into $BUILDDIR/test
-    set(TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM ${TEST_BIG_PAYLOAD_NAME}_tcp_service_random.json)
-    configure_file(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM}.in
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_RANDOM}
-        ${TEST_BIG_PAYLOAD_SERVICE}
-    )
-
-    # Copy config file for client and service into $BUILDDIR/test
-    set(TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_GENERAL ${TEST_BIG_PAYLOAD_NAME}_tcp_client_queue_limited_general.json)
-    configure_file(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_GENERAL}.in
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_GENERAL}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_GENERAL}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_GENERAL}
-        ${TEST_BIG_PAYLOAD_CLIENT}
-    )
-
-    # Copy config file for client and service into $BUILDDIR/test
-    set(TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_GENERAL ${TEST_BIG_PAYLOAD_NAME}_tcp_service_queue_limited_general.json)
-    configure_file(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_GENERAL}.in
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_GENERAL}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_GENERAL}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_GENERAL}
-        ${TEST_BIG_PAYLOAD_SERVICE}
-    )
-
-    # Copy config file for client and service into $BUILDDIR/test
-    set(TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC ${TEST_BIG_PAYLOAD_NAME}_tcp_client_queue_limited_specific.json)
-    configure_file(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC}.in
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC}
-        ${TEST_BIG_PAYLOAD_CLIENT}
-    )
-
-    # Copy config file for client and service into $BUILDDIR/test
-    set(TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC ${TEST_BIG_PAYLOAD_NAME}_tcp_service_queue_limited_specific.json)
-    configure_file(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC}.in
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_CONFIG_FILE_QUEUE_LIMITED_SPECIFIC}
-        ${TEST_BIG_PAYLOAD_SERVICE}
-    )
-    # Copy config file for UDP client and service into $BUILDDIR/test
-    set(TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_UDP_CONFIG_FILE ${TEST_BIG_PAYLOAD_NAME}_udp_service.json)
-    configure_file(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_UDP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_UDP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_UDP_CONFIG_FILE}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_UDP_CONFIG_FILE}
-        ${TEST_BIG_PAYLOAD_SERVICE}
-    )
-    set(TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_UDP_CONFIG_FILE ${TEST_BIG_PAYLOAD_NAME}_udp_client.json)
-    configure_file(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/conf/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_UDP_CONFIG_FILE}.in
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_UDP_CONFIG_FILE}
-        @ONLY)
-    copy_to_builddir(
-        ${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_UDP_CONFIG_FILE}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_UDP_CONFIG_FILE}
-        ${TEST_BIG_PAYLOAD_CLIENT}
-    )
-
-    # Copy bashscript to start client local to $BUILDDIR/test
-    set(TEST_LOCAL_BIG_PAYLOAD_CLIENT_START_SCRIPT ${TEST_BIG_PAYLOAD_NAME}_client_local_start.sh)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_BIG_PAYLOAD_CLIENT_START_SCRIPT}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_BIG_PAYLOAD_CLIENT_START_SCRIPT}
-        ${TEST_BIG_PAYLOAD_CLIENT}
-    )
-
-    # Copy bashscript to start service local to $BUILDDIR/test
-    set(TEST_LOCAL_BIG_PAYLOAD_SERVICE_START_SCRIPT ${TEST_BIG_PAYLOAD_NAME}_service_local_start.sh)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_BIG_PAYLOAD_SERVICE_START_SCRIPT}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_BIG_PAYLOAD_SERVICE_START_SCRIPT}
-        ${TEST_BIG_PAYLOAD_SERVICE}
-    )
-
-    # Copy bashscript to start client and server $BUILDDIR/test
-    set(TEST_LOCAL_BIG_PAYLOAD_NAME big_payload_test_local)
-    set(TEST_LOCAL_BIG_PAYLOAD_NAME_RANDOM big_payload_test_local_random)
-    set(TEST_LOCAL_BIG_PAYLOAD_NAME_LIMITED big_payload_test_local_limited)
-    set(TEST_LOCAL_BIG_PAYLOAD_NAME_QUEUE_LIMITED big_payload_test_local_queue_limited)
-    set(TEST_LOCAL_BIG_PAYLOAD_STARTER ${TEST_LOCAL_BIG_PAYLOAD_NAME}_starter.sh)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_BIG_PAYLOAD_STARTER}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_BIG_PAYLOAD_STARTER}
-        ${TEST_BIG_PAYLOAD_SERVICE}
-    )
-
-    # Copy bashscript to start client and server $BUILDDIR/test
-    set(TEST_LOCAL_TCP_BIG_PAYLOAD_NAME big_payload_test_local_tcp)
-    set(TEST_LOCAL_TCP_BIG_PAYLOAD_NAME_RANDOM big_payload_test_local_tcp_random)
-    set(TEST_LOCAL_TCP_BIG_PAYLOAD_NAME_LIMITED big_payload_test_local_tcp_limited)
-    set(TEST_LOCAL_TCP_BIG_PAYLOAD_NAME_QUEUE_LIMITED big_payload_test_local_tcp_queue_limited)
-    # Copy starter as well as client/service start scripts for external tests
-    set(TEST_LOCAL_TCP_BIG_PAYLOAD_STARTER ${TEST_LOCAL_TCP_BIG_PAYLOAD_NAME}_starter.sh)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_STARTER}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_TCP_BIG_PAYLOAD_STARTER}
-        ${TEST_BIG_PAYLOAD_SERVICE}
-    )
-    set(TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_START_SCRIPT ${TEST_LOCAL_TCP_BIG_PAYLOAD_NAME}_service_start.sh)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_START_SCRIPT}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_START_SCRIPT}
-        ${TEST_BIG_PAYLOAD_SERVICE}
-    )
-
-    # Copy bashscript to start client for external test into $BUILDDIR/test
-    set(TEST_EXTERNAL_BIG_PAYLOAD_NAME big_payload_test_external)
-    set(TEST_EXTERNAL_BIG_PAYLOAD_NAME_RANDOM big_payload_test_external_random)
-    set(TEST_EXTERNAL_BIG_PAYLOAD_NAME_LIMITED big_payload_test_external_limited)
-    set(TEST_EXTERNAL_BIG_PAYLOAD_NAME_LIMITED_GENERAL big_payload_test_external_limited_general)
-    set(TEST_EXTERNAL_BIG_PAYLOAD_NAME_QUEUE_LIMITED_GENERAL big_payload_test_external_queue_limited_general)
-    set(TEST_EXTERNAL_BIG_PAYLOAD_NAME_QUEUE_LIMITED_SPECIFIC big_payload_test_external_queue_limited_specific)
-    set(TEST_EXTERNAL_BIG_PAYLOAD_NAME_UDP big_payload_test_external_udp)
-
-    # Copy starter as well as client/service start scripts for external tests
-    set(TEST_EXTERNAL_BIG_PAYLOAD_STARTER ${TEST_EXTERNAL_BIG_PAYLOAD_NAME}_starter.sh)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_STARTER}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_STARTER}
-        ${TEST_BIG_PAYLOAD_SERVICE}
-    )
-    set(TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_START_SCRIPT ${TEST_EXTERNAL_BIG_PAYLOAD_NAME}_service_start.sh)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_START_SCRIPT}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_START_SCRIPT}
-        ${TEST_BIG_PAYLOAD_SERVICE}
-    )
-
-    set(TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_START_SCRIPT ${TEST_EXTERNAL_BIG_PAYLOAD_NAME}_client_start.sh)
-    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_START_SCRIPT}
-        ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_START_SCRIPT}
-        ${TEST_BIG_PAYLOAD_CLIENT}
-    )
 endif()
+
+copy_to_builddir(${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_BIG_PAYLOAD_STARTER}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_BIG_PAYLOAD_STARTER}
+    ${TEST_BIG_PAYLOAD_SERVICE}
+)
+
+# Copy bashscript to start client and server $BUILDDIR/test
+set(TEST_LOCAL_TCP_BIG_PAYLOAD_NAME big_payload_test_local_tcp)
+set(TEST_LOCAL_TCP_BIG_PAYLOAD_NAME_RANDOM big_payload_test_local_tcp_random)
+set(TEST_LOCAL_TCP_BIG_PAYLOAD_NAME_LIMITED big_payload_test_local_tcp_limited)
+set(TEST_LOCAL_TCP_BIG_PAYLOAD_NAME_QUEUE_LIMITED big_payload_test_local_tcp_queue_limited)
+# Copy starter as well as client/service start scripts for external tests
+set(TEST_LOCAL_TCP_BIG_PAYLOAD_STARTER ${TEST_LOCAL_TCP_BIG_PAYLOAD_NAME}_starter.sh)
+copy_to_builddir(${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_STARTER}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_TCP_BIG_PAYLOAD_STARTER}
+    ${TEST_BIG_PAYLOAD_SERVICE}
+)
+set(TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_START_SCRIPT ${TEST_LOCAL_TCP_BIG_PAYLOAD_NAME}_service_start.sh)
+copy_to_builddir(${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_START_SCRIPT}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_TCP_BIG_PAYLOAD_SERVICE_START_SCRIPT}
+    ${TEST_BIG_PAYLOAD_SERVICE}
+)
+
+# Copy bashscript to start client for external test into $BUILDDIR/test
+set(TEST_EXTERNAL_BIG_PAYLOAD_NAME big_payload_test_external)
+set(TEST_EXTERNAL_BIG_PAYLOAD_NAME_RANDOM big_payload_test_external_random)
+set(TEST_EXTERNAL_BIG_PAYLOAD_NAME_LIMITED big_payload_test_external_limited)
+set(TEST_EXTERNAL_BIG_PAYLOAD_NAME_LIMITED_GENERAL big_payload_test_external_limited_general)
+set(TEST_EXTERNAL_BIG_PAYLOAD_NAME_QUEUE_LIMITED_GENERAL big_payload_test_external_queue_limited_general)
+set(TEST_EXTERNAL_BIG_PAYLOAD_NAME_QUEUE_LIMITED_SPECIFIC big_payload_test_external_queue_limited_specific)
+set(TEST_EXTERNAL_BIG_PAYLOAD_NAME_UDP big_payload_test_external_udp)
+
+# Copy starter as well as client/service start scripts for external tests
+set(TEST_EXTERNAL_BIG_PAYLOAD_STARTER ${TEST_EXTERNAL_BIG_PAYLOAD_NAME}_starter.sh)
+copy_to_builddir(${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_STARTER}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_STARTER}
+    ${TEST_BIG_PAYLOAD_SERVICE}
+)
+set(TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_START_SCRIPT ${TEST_EXTERNAL_BIG_PAYLOAD_NAME}_service_start.sh)
+copy_to_builddir(${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_START_SCRIPT}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_SERVICE_START_SCRIPT}
+    ${TEST_BIG_PAYLOAD_SERVICE}
+)
+
+set(TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_START_SCRIPT ${TEST_EXTERNAL_BIG_PAYLOAD_NAME}_client_start.sh)
+copy_to_builddir(${NETWORK_TEST_SRC_DIR}/big_payload_tests/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_START_SCRIPT}
+    ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_CLIENT_START_SCRIPT}
+    ${TEST_BIG_PAYLOAD_CLIENT}
+)
 
 ##############################################################################
 # client id tests
@@ -1261,18 +1354,22 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_CLIENT_ID_UTILITY ${TEST_CLIENT_ID_NAME}_utility)
     add_executable(${TEST_CLIENT_ID_UTILITY}
-        client_id_tests/${TEST_CLIENT_ID_UTILITY}.cpp
-        ${PROJECT_SOURCE_DIR}/implementation/utility/src/utility.cpp)
+        client_id_tests/${TEST_CLIENT_ID_UTILITY}.cpp)
+        #${PROJECT_SOURCE_DIR}/implementation/utility/src/utility.cpp)
     target_link_libraries(${TEST_CLIENT_ID_UTILITY}
         ${VSOMEIP_NAME}
         ${VSOMEIP_NAME}-cfg
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # Copy config files for test into $BUILDDIR/test
@@ -1431,7 +1528,11 @@ if(NOT ${TESTS_BAT})
     )
 
     # copy starter scripts into builddir
-    set(TEST_CLIENT_ID_MASTER_STARTER ${TEST_CLIENT_ID_NAME}_master_starter.sh)
+    if (${CMAKE_SYSTEM_NAME} MATCHES "QNX")
+        set(TEST_CLIENT_ID_MASTER_STARTER ${TEST_CLIENT_ID_NAME}_master_starter_qnx.sh)
+    else()
+        set(TEST_CLIENT_ID_MASTER_STARTER ${TEST_CLIENT_ID_NAME}_master_starter.sh)
+    endif()
     copy_to_builddir(${NETWORK_TEST_SRC_DIR}/client_id_tests/${TEST_CLIENT_ID_MASTER_STARTER}
         ${NETWORK_TEST_BIN_DIR}/${TEST_CLIENT_ID_MASTER_STARTER}
         ${TEST_CLIENT_ID_SERVICE}
@@ -1455,6 +1556,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
     set(TEST_DEBOUNCE_SERVICE ${TEST_DEBOUNCE_NAME}_service)
     add_executable(${TEST_DEBOUNCE_SERVICE} debounce_tests/${TEST_DEBOUNCE_SERVICE}.cpp)
@@ -1463,6 +1566,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # copy starter scripts into builddir
@@ -1501,6 +1606,179 @@ if(NOT ${TESTS_BAT})
 endif()
 
 ##############################################################################
+# debounce filter tests
+##############################################################################
+if(NOT ${TESTS_BAT})
+    set(TEST_DEBOUNCE_FILTER_NAME debounce_filter_test)
+    set(TEST_DEBOUNCE_FILTER_CLIENT ${TEST_DEBOUNCE_FILTER_NAME}_client)
+    add_executable(${TEST_DEBOUNCE_FILTER_CLIENT} debounce_filter_tests/${TEST_DEBOUNCE_FILTER_CLIENT}.cpp)
+    target_link_libraries(${TEST_DEBOUNCE_FILTER_CLIENT}
+        ${VSOMEIP_NAME}
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+    set(TEST_DEBOUNCE_FILTER_SERVICE ${TEST_DEBOUNCE_FILTER_NAME}_service)
+    add_executable(${TEST_DEBOUNCE_FILTER_SERVICE} debounce_filter_tests/${TEST_DEBOUNCE_FILTER_SERVICE}.cpp)
+    target_link_libraries(${TEST_DEBOUNCE_FILTER_SERVICE}
+        ${VSOMEIP_NAME}
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    # copy starter scripts into builddir
+    set(TEST_DEBOUNCE_FILTER_MASTER_STARTER ${TEST_DEBOUNCE_FILTER_NAME}_master_starter.sh)
+    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/debounce_filter_tests/${TEST_DEBOUNCE_FILTER_MASTER_STARTER}
+        ${NETWORK_TEST_BIN_DIR}/${TEST_DEBOUNCE_FILTER_MASTER_STARTER}
+        ${TEST_DEBOUNCE_FILTER_SERVICE}
+    )
+    set(TEST_DEBOUNCE_FILTER_SLAVE_STARTER ${TEST_DEBOUNCE_FILTER_NAME}_slave_starter.sh)
+    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/debounce_filter_tests/${TEST_DEBOUNCE_FILTER_SLAVE_STARTER}
+        ${NETWORK_TEST_BIN_DIR}/${TEST_DEBOUNCE_FILTER_SLAVE_STARTER}
+        ${TEST_DEBOUNCE_FILTER_SERVICE}
+    )
+
+    # configure configurations and copy them into builddir
+    set(TEST_DEBOUNCE_FILTER_MASTER_CONFIG_FILE ${TEST_DEBOUNCE_FILTER_SERVICE}.json)
+    configure_file(
+        ${NETWORK_TEST_SRC_DIR}/debounce_filter_tests/conf/${TEST_DEBOUNCE_FILTER_MASTER_CONFIG_FILE}.in
+        ${NETWORK_TEST_SRC_DIR}/debounce_filter_tests/${TEST_DEBOUNCE_FILTER_MASTER_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${NETWORK_TEST_SRC_DIR}/debounce_filter_tests/${TEST_DEBOUNCE_FILTER_MASTER_CONFIG_FILE}
+        ${NETWORK_TEST_BIN_DIR}/${TEST_DEBOUNCE_FILTER_MASTER_CONFIG_FILE}
+        ${TEST_DEBOUNCE_FILTER_SERVICE}
+    )
+    set(TEST_DEBOUNCE_FILTER_SLAVE_CONFIG_FILE ${TEST_DEBOUNCE_FILTER_CLIENT}.json)
+    configure_file(
+        ${NETWORK_TEST_SRC_DIR}/debounce_filter_tests/conf/${TEST_DEBOUNCE_FILTER_SLAVE_CONFIG_FILE}.in
+        ${NETWORK_TEST_SRC_DIR}/debounce_filter_tests/${TEST_DEBOUNCE_FILTER_SLAVE_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${NETWORK_TEST_SRC_DIR}/debounce_filter_tests/${TEST_DEBOUNCE_FILTER_SLAVE_CONFIG_FILE}
+        ${NETWORK_TEST_BIN_DIR}/${TEST_DEBOUNCE_FILTER_SLAVE_CONFIG_FILE}
+        ${TEST_DEBOUNCE_FILTER_SERVICE}
+    )
+endif()
+
+##############################################################################
+# debounce frequency tests
+##############################################################################
+if(NOT ${TESTS_BAT})
+    set(TEST_DEBOUNCE_FREQUENCY_NAME debounce_frequency_test)
+    set(TEST_DEBOUNCE_FREQUENCY_CLIENT ${TEST_DEBOUNCE_FREQUENCY_NAME}_client)
+    add_executable(${TEST_DEBOUNCE_FREQUENCY_CLIENT} debounce_frequency_tests/${TEST_DEBOUNCE_FREQUENCY_CLIENT}.cpp)
+    target_link_libraries(${TEST_DEBOUNCE_FREQUENCY_CLIENT}
+        ${VSOMEIP_NAME}
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+        vsomeip_utilities
+    )
+    set(TEST_DEBOUNCE_FREQUENCY_SERVICE ${TEST_DEBOUNCE_FREQUENCY_NAME}_service)
+    add_executable(${TEST_DEBOUNCE_FREQUENCY_SERVICE} debounce_frequency_tests/${TEST_DEBOUNCE_FREQUENCY_SERVICE}.cpp)
+    target_link_libraries(${TEST_DEBOUNCE_FREQUENCY_SERVICE}
+        ${VSOMEIP_NAME}
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+        vsomeip_utilities
+    )
+
+    # copy starter scripts into builddir
+    set(TEST_DEBOUNCE_FREQUENCY_MASTER_STARTER ${TEST_DEBOUNCE_FREQUENCY_NAME}_master_starter.sh)
+    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/debounce_frequency_tests/${TEST_DEBOUNCE_FREQUENCY_MASTER_STARTER}
+        ${NETWORK_TEST_BIN_DIR}/${TEST_DEBOUNCE_FREQUENCY_MASTER_STARTER}
+        ${TEST_DEBOUNCE_FREQUENCY_CLIENT}
+    )
+    set(TEST_DEBOUNCE_FREQUENCY_SLAVE_STARTER ${TEST_DEBOUNCE_FREQUENCY_NAME}_slave_starter.sh)
+    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/debounce_frequency_tests/${TEST_DEBOUNCE_FREQUENCY_SLAVE_STARTER}
+        ${NETWORK_TEST_BIN_DIR}/${TEST_DEBOUNCE_FREQUENCY_SLAVE_STARTER}
+        ${TEST_DEBOUNCE_FREQUENCY_SERVICE}
+    )
+
+    # configure configurations and copy them into builddir
+    set(TEST_DEBOUNCE_FREQUENCY_MASTER_CONFIG_FILE ${TEST_DEBOUNCE_FREQUENCY_CLIENT}.json)
+    configure_file(
+        ${NETWORK_TEST_SRC_DIR}/debounce_frequency_tests/conf/${TEST_DEBOUNCE_FREQUENCY_MASTER_CONFIG_FILE}.in
+        ${NETWORK_TEST_SRC_DIR}/debounce_frequency_tests/${TEST_DEBOUNCE_FREQUENCY_MASTER_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${NETWORK_TEST_SRC_DIR}/debounce_frequency_tests/${TEST_DEBOUNCE_FREQUENCY_MASTER_CONFIG_FILE}
+        ${NETWORK_TEST_BIN_DIR}/${TEST_DEBOUNCE_FREQUENCY_MASTER_CONFIG_FILE}
+        ${TEST_DEBOUNCE_FREQUENCY_CLIENT}
+    )
+    set(TEST_DEBOUNCE_FREQUENCY_SLAVE_CONFIG_FILE ${TEST_DEBOUNCE_FREQUENCY_SERVICE}.json)
+    configure_file(
+        ${NETWORK_TEST_SRC_DIR}/debounce_frequency_tests/conf/${TEST_DEBOUNCE_FREQUENCY_SLAVE_CONFIG_FILE}.in
+        ${NETWORK_TEST_SRC_DIR}/debounce_frequency_tests/${TEST_DEBOUNCE_FREQUENCY_SLAVE_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${NETWORK_TEST_SRC_DIR}/debounce_frequency_tests/${TEST_DEBOUNCE_FREQUENCY_SLAVE_CONFIG_FILE}
+        ${NETWORK_TEST_BIN_DIR}/${TEST_DEBOUNCE_FREQUENCY_SLAVE_CONFIG_FILE}
+        ${TEST_DEBOUNCE_FREQUENCY_SERVICE}
+    )
+endif()
+
+##############################################################################
+# debounce callback tests
+##############################################################################
+if(NOT ${TESTS_BAT})
+    set(TEST_DEBOUNCE_CALLBACK_NAME debounce_callback_test)
+    set(TEST_DEBOUNCE_CALLBACK_CLIENT ${TEST_DEBOUNCE_CALLBACK_NAME}_client)
+    add_executable(${TEST_DEBOUNCE_CALLBACK_CLIENT} debounce_callback_tests/${TEST_DEBOUNCE_CALLBACK_CLIENT}.cpp)
+    target_link_libraries(${TEST_DEBOUNCE_CALLBACK_CLIENT}
+        ${VSOMEIP_NAME}
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+    set(TEST_DEBOUNCE_CALLBACK_SERVICE ${TEST_DEBOUNCE_CALLBACK_NAME}_service)
+    add_executable(${TEST_DEBOUNCE_CALLBACK_SERVICE} debounce_callback_tests/${TEST_DEBOUNCE_CALLBACK_SERVICE}.cpp)
+    target_link_libraries(${TEST_DEBOUNCE_CALLBACK_SERVICE}
+        ${VSOMEIP_NAME}
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    # copy starter scripts into builddir
+    set(TEST_DEBOUNCE_CALLBACK_MASTER_STARTER ${TEST_DEBOUNCE_CALLBACK_NAME}_master_starter.sh)
+    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/debounce_callback_tests/${TEST_DEBOUNCE_CALLBACK_MASTER_STARTER}
+        ${NETWORK_TEST_BIN_DIR}/${TEST_DEBOUNCE_CALLBACK_MASTER_STARTER}
+        ${TEST_DEBOUNCE_CALLBACK_SERVICE}
+    )
+    set(TEST_DEBOUNCE_CALLBACK_SLAVE_STARTER ${TEST_DEBOUNCE_CALLBACK_NAME}_slave_starter.sh)
+    copy_to_builddir(${NETWORK_TEST_SRC_DIR}/debounce_callback_tests/${TEST_DEBOUNCE_CALLBACK_SLAVE_STARTER}
+        ${NETWORK_TEST_BIN_DIR}/${TEST_DEBOUNCE_CALLBACK_SLAVE_STARTER}
+        ${TEST_DEBOUNCE_CALLBACK_CLIENT}
+    )
+
+    # configure configurations and copy them into builddir
+    set(TEST_DEBOUNCE_CALLBACK_MASTER_CONFIG_FILE ${TEST_DEBOUNCE_CALLBACK_SERVICE}.json)
+    configure_file(
+        ${NETWORK_TEST_SRC_DIR}/debounce_callback_tests/conf/${TEST_DEBOUNCE_CALLBACK_MASTER_CONFIG_FILE}.in
+        ${NETWORK_TEST_SRC_DIR}/debounce_callback_tests/${TEST_DEBOUNCE_CALLBACK_MASTER_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${NETWORK_TEST_SRC_DIR}/debounce_callback_tests/${TEST_DEBOUNCE_CALLBACK_MASTER_CONFIG_FILE}
+        ${NETWORK_TEST_BIN_DIR}/${TEST_DEBOUNCE_CALLBACK_MASTER_CONFIG_FILE}
+        ${TEST_DEBOUNCE_CALLBACK_SERVICE}
+    )
+    set(TEST_DEBOUNCE_CALLBACK_SLAVE_CONFIG_FILE ${TEST_DEBOUNCE_CALLBACK_CLIENT}.json)
+    configure_file(
+        ${NETWORK_TEST_SRC_DIR}/debounce_callback_tests/conf/${TEST_DEBOUNCE_CALLBACK_SLAVE_CONFIG_FILE}.in
+        ${NETWORK_TEST_SRC_DIR}/debounce_callback_tests/${TEST_DEBOUNCE_CALLBACK_SLAVE_CONFIG_FILE}
+        @ONLY)
+    copy_to_builddir(
+        ${NETWORK_TEST_SRC_DIR}/debounce_callback_tests/${TEST_DEBOUNCE_CALLBACK_SLAVE_CONFIG_FILE}
+        ${NETWORK_TEST_BIN_DIR}/${TEST_DEBOUNCE_CALLBACK_SLAVE_CONFIG_FILE}
+        ${TEST_DEBOUNCE_CALLBACK_CLIENT}
+    )
+endif()
+
+##############################################################################
 # subscribe notify tests
 ##############################################################################
 if(NOT ${TESTS_BAT})
@@ -1512,6 +1790,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # Copy config files for test into $BUILDDIR/test (local communication via UDS)
@@ -1780,7 +2060,11 @@ if(NOT ${TESTS_BAT})
     )
 
     # copy starter scripts into builddir
-    set(TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER ${TEST_SUBSCRIBE_NOTIFY_NAME}_master_starter.sh)
+    if (${CMAKE_SYSTEM_NAME} MATCHES "QNX")
+        set(TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER ${TEST_SUBSCRIBE_NOTIFY_NAME}_master_starter_qnx.sh)
+    else()
+        set(TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER ${TEST_SUBSCRIBE_NOTIFY_NAME}_master_starter.sh)
+    endif()
     copy_to_builddir(${NETWORK_TEST_SRC_DIR}/subscribe_notify_tests/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_MASTER_STARTER}
         ${TEST_SUBSCRIBE_NOTIFY_SERVICE}
@@ -1803,6 +2087,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
     # client
     set(TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_CLIENT ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_NAME}_client)
@@ -1813,6 +2099,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_MASTER_CONFIG_FILE
@@ -2202,6 +2490,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # Copy config files for test into $BUILDDIR/test
@@ -2278,7 +2568,11 @@ if(NOT ${TESTS_BAT})
     )
 
     # copy starter scripts into builddir
-    set(TEST_SUBSCRIBE_NOTIFY_ONE_MASTER_STARTER ${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_master_starter.sh)
+    if (${CMAKE_SYSTEM_NAME} MATCHES "QNX")
+        set(TEST_SUBSCRIBE_NOTIFY_ONE_MASTER_STARTER ${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_master_starter_qnx.sh)
+    else()
+        set(TEST_SUBSCRIBE_NOTIFY_ONE_MASTER_STARTER ${TEST_SUBSCRIBE_NOTIFY_ONE_NAME}_master_starter.sh)
+    endif()
     copy_to_builddir(${NETWORK_TEST_SRC_DIR}/subscribe_notify_one_tests/${TEST_SUBSCRIBE_NOTIFY_ONE_MASTER_STARTER}
         ${NETWORK_TEST_BIN_DIR}/${TEST_SUBSCRIBE_NOTIFY_ONE_MASTER_STARTER}
         ${TEST_SUBSCRIBE_NOTIFY_ONE_SERVICE}
@@ -2307,6 +2601,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # Copy config files for test into $BUILDDIR/test
@@ -2342,6 +2638,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_CPU_LOAD_CLIENT_MASTER_CONFIG_FILE ${TEST_CPU_LOAD_NAME}_client_master.json)
@@ -2391,6 +2689,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_INITIAL_EVENT_CLIENT ${TEST_INITIAL_EVENT_NAME}_client)
@@ -2400,6 +2700,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_INITIAL_EVENT_AVAILABILITY_CHECKER ${TEST_INITIAL_EVENT_NAME}_availability_checker)
@@ -2409,6 +2711,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_INITIAL_EVENT_STOP_SERVICE ${TEST_INITIAL_EVENT_NAME}_stop_service)
@@ -2418,6 +2722,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # Copy config files for test into $BUILDDIR/test
@@ -2664,7 +2970,11 @@ if(NOT ${TESTS_BAT})
     )
 
     # copy starter scripts into builddir
-    set(TEST_INITIAL_EVENT_MASTER_STARTER ${TEST_INITIAL_EVENT_NAME}_master_starter.sh)
+    if (${CMAKE_SYSTEM_NAME} MATCHES "QNX")
+        set(TEST_INITIAL_EVENT_MASTER_STARTER ${TEST_INITIAL_EVENT_NAME}_master_starter_qnx.sh)
+    else()
+        set(TEST_INITIAL_EVENT_MASTER_STARTER ${TEST_INITIAL_EVENT_NAME}_master_starter.sh)
+    endif()
     copy_to_builddir(${NETWORK_TEST_SRC_DIR}/initial_event_tests/${TEST_INITIAL_EVENT_MASTER_STARTER}
         ${NETWORK_TEST_BIN_DIR}/${TEST_INITIAL_EVENT_MASTER_STARTER}
         ${TEST_INITIAL_EVENT_SERVICE}
@@ -2688,6 +2998,33 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
+    )
+
+    set(TEST_OFFER_MULTIPLE_OFFERING offer_test_multiple_offerings)
+    add_executable(${TEST_OFFER_MULTIPLE_OFFERING} offer_tests/${TEST_OFFER_MULTIPLE_OFFERING}.cpp)
+    target_link_libraries(${TEST_OFFER_MULTIPLE_OFFERING}
+        ${VSOMEIP_NAME}
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+    )
+
+    # copy starter scripts into builddir
+    set(TEST_OFFER_MULTIPLE_OFFERING_STARTER ${TEST_OFFER_MULTIPLE_OFFERING}_starter.sh)
+    copy_to_builddir(
+        ${NETWORK_TEST_SRC_DIR}/offer_tests/${TEST_OFFER_MULTIPLE_OFFERING_STARTER}
+        ${NETWORK_TEST_BIN_DIR}/${TEST_OFFER_MULTIPLE_OFFERING_STARTER}
+        ${TEST_OFFER_MULTIPLE_OFFERING}
+    )
+
+    # Copy config file for local test into $BUILDDIR/test
+    set(TEST_OFFER_MULTIPLE_OFFERING_CONFIG ${TEST_OFFER_MULTIPLE_OFFERING}.json)
+    copy_to_builddir(
+        ${NETWORK_TEST_SRC_DIR}/offer_tests/${TEST_OFFER_MULTIPLE_OFFERING_CONFIG}
+        ${NETWORK_TEST_BIN_DIR}/${TEST_OFFER_MULTIPLE_OFFERING_CONFIG}
+        ${TEST_OFFER_MULTIPLE_OFFERING}
     )
 
     set(TEST_OFFER_CLIENT ${TEST_OFFER_NAME}_client)
@@ -2697,6 +3034,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_OFFER_SERVICE_EXTERNAL ${TEST_OFFER_NAME}_service_external)
@@ -2706,6 +3045,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_OFFER_EXTERNAL_SD_MESSAGE_SENDER ${TEST_OFFER_NAME}_external_sd_msg_sender)
@@ -2714,6 +3055,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # client and service for offer test big sd msg
@@ -2725,19 +3068,27 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_OFFER_BIG_CLIENT ${TEST_OFFER_BIG_NAME}_client)
     add_executable(${TEST_OFFER_BIG_CLIENT} offer_tests/${TEST_OFFER_BIG_NAME}_client.cpp)
     target_link_libraries(${TEST_OFFER_BIG_CLIENT}
+        ${DLT_LIBRARIES}
         ${VSOMEIP_NAME}
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        vsomeip_utilities
     )
 
     # copy starter scripts into builddir
-    set(TEST_OFFER_LOCAL_STARTER ${TEST_OFFER_NAME}_local_starter.sh)
+    if (${CMAKE_SYSTEM_NAME} MATCHES "QNX")
+        set(TEST_OFFER_LOCAL_STARTER ${TEST_OFFER_NAME}_local_starter_qnx.sh)
+    else()
+        set(TEST_OFFER_LOCAL_STARTER ${TEST_OFFER_NAME}_local_starter.sh)
+    endif()
     copy_to_builddir(${NETWORK_TEST_SRC_DIR}/offer_tests/${TEST_OFFER_LOCAL_STARTER}
         ${NETWORK_TEST_BIN_DIR}/${TEST_OFFER_LOCAL_STARTER}
         ${TEST_OFFER_SERVICE}
@@ -2798,7 +3149,11 @@ if(NOT ${TESTS_BAT})
     )
 
     # Copy starter scripts for external test to $BUILDDIR/test
-    set(TEST_OFFER_EXTERNAL_MASTER_STARTER ${TEST_OFFER_NAME}_external_master_starter.sh)
+    if (${CMAKE_SYSTEM_NAME} MATCHES "QNX")
+        set(TEST_OFFER_EXTERNAL_MASTER_STARTER ${TEST_OFFER_NAME}_external_master_starter_qnx.sh)
+    else()
+        set(TEST_OFFER_EXTERNAL_MASTER_STARTER ${TEST_OFFER_NAME}_external_master_starter.sh)
+    endif()
     configure_file(
         ${NETWORK_TEST_SRC_DIR}/offer_tests/conf/${TEST_OFFER_EXTERNAL_MASTER_STARTER}.in
         ${NETWORK_TEST_SRC_DIR}/offer_tests/${TEST_OFFER_EXTERNAL_MASTER_STARTER}
@@ -2843,6 +3198,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_OFFERED_SERVICES_INFO_CLIENT ${TEST_OFFERED_SERVICES_INFO_NAME}_client)
@@ -2852,6 +3209,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # copy starter scripts into builddir
@@ -2882,6 +3241,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     file(GLOB sd_sources
@@ -2904,6 +3265,8 @@ if(NOT ${TESTS_BAT})
         ${TEST_LINK_LIBRARIES}
         ${VSOMEIP_NAME}
         ${VSOMEIP_NAME}-sd
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # copy starter scripts into builddir
@@ -2942,6 +3305,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     file(GLOB sd_sources
@@ -2964,6 +3329,8 @@ if(NOT ${TESTS_BAT})
         ${TEST_LINK_LIBRARIES}
         ${VSOMEIP_NAME}
         ${VSOMEIP_NAME}-sd
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # copy starter scripts into builddir
@@ -3005,6 +3372,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     add_executable(${TEST_E2E_CLIENT}
@@ -3015,6 +3384,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # Copy service config file for external allow tests into $BUILDDIR/test
@@ -3073,6 +3444,8 @@ if(NOT ${TESTS_BAT} AND ${TEST_E2E_PROFILE_04})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     add_executable(${TEST_E2E_PROFILE_04_CLIENT}
@@ -3083,6 +3456,8 @@ if(NOT ${TESTS_BAT} AND ${TEST_E2E_PROFILE_04})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # Copy service config file for external allow tests into $BUILDDIR/test
@@ -3127,6 +3502,78 @@ if(NOT ${TESTS_BAT} AND ${TEST_E2E_PROFILE_04})
 endif()
 
 ##############################################################################
+# e2e profile 07 test
+##############################################################################
+
+if(NOT ${TESTS_BAT} AND ${TEST_E2E_PROFILE_07})
+    set(TEST_E2E_PROFILE_07_NAME e2e_profile_07_test)
+    set(TEST_E2E_PROFILE_07_SERVICE e2e_profile_07_test_service)
+    set(TEST_E2E_PROFILE_07_CLIENT e2e_profile_07_test_client)
+
+    add_executable(${TEST_E2E_PROFILE_07_SERVICE} e2e_tests/${TEST_E2E_PROFILE_07_SERVICE}.cpp)
+    target_link_libraries(${TEST_E2E_PROFILE_07_SERVICE}
+        ${VSOMEIP_NAME}
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
+    )
+
+    add_executable(${TEST_E2E_PROFILE_07_CLIENT}
+        e2e_tests/${TEST_E2E_PROFILE_07_CLIENT}.cpp
+    )
+    target_link_libraries(${TEST_E2E_PROFILE_07_CLIENT}
+        ${VSOMEIP_NAME}
+        ${Boost_LIBRARIES}
+        ${DL_LIBRARY}
+        ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
+    )
+
+    # Copy service config file for external allow tests into $BUILDDIR/test
+    set(TEST_E2E_PROFILE_07_SERVICE_CONFIG_FILE_EXTERNAL ${TEST_E2E_PROFILE_07_NAME}_service_external.json)
+    configure_file(
+        ${NETWORK_TEST_SRC_DIR}/e2e_tests/conf/${TEST_E2E_PROFILE_07_SERVICE_CONFIG_FILE_EXTERNAL}.in
+        ${NETWORK_TEST_SRC_DIR}/e2e_tests/${TEST_E2E_PROFILE_07_SERVICE_CONFIG_FILE_EXTERNAL}
+        @ONLY)
+    copy_to_builddir(
+        ${NETWORK_TEST_SRC_DIR}/e2e_tests/${TEST_E2E_PROFILE_07_SERVICE_CONFIG_FILE_EXTERNAL}
+        ${NETWORK_TEST_BIN_DIR}/${TEST_E2E_PROFILE_07_SERVICE_CONFIG_FILE_EXTERNAL}
+        ${TEST_E2E_PROFILE_07_SERVICE}
+    )
+
+    # Copy client config file for external allow tests into $BUILDDIR/test
+    set(TEST_E2E_PROFILE_07_CLIENT_CONFIG_FILE_EXTERNAL ${TEST_E2E_PROFILE_07_NAME}_client_external.json)
+    configure_file(
+        ${NETWORK_TEST_SRC_DIR}/e2e_tests/conf/${TEST_E2E_PROFILE_07_CLIENT_CONFIG_FILE_EXTERNAL}.in
+        ${NETWORK_TEST_SRC_DIR}/e2e_tests/${TEST_E2E_PROFILE_07_CLIENT_CONFIG_FILE_EXTERNAL}
+        @ONLY)
+    copy_to_builddir(
+        ${NETWORK_TEST_SRC_DIR}/e2e_tests/${TEST_E2E_PROFILE_07_CLIENT_CONFIG_FILE_EXTERNAL}
+        ${NETWORK_TEST_BIN_DIR}/${TEST_E2E_PROFILE_07_CLIENT_CONFIG_FILE_EXTERNAL}
+        ${TEST_E2E_PROFILE_07_SERVICE}
+    )
+
+    # Copy bashscript to start external tests (master) into $BUILDDIR/test
+    set(TEST_E2E_PROFILE_07_EXTERNAL_MASTER_START_SCRIPT ${TEST_E2E_PROFILE_07_NAME}_external_master_start.sh)
+    copy_to_builddir(
+        ${NETWORK_TEST_SRC_DIR}/e2e_tests/${TEST_E2E_PROFILE_07_EXTERNAL_MASTER_START_SCRIPT}
+        ${NETWORK_TEST_BIN_DIR}/${TEST_E2E_PROFILE_07_EXTERNAL_MASTER_START_SCRIPT}
+        ${TEST_E2E_PROFILE_07_SERVICE}
+    )
+
+    # Copy bashscript to start external tests (slave) into $BUILDDIR/test
+    set(TEST_E2E_PROFILE_07_EXTERNAL_SLAVE_START_SCRIPT ${TEST_E2E_PROFILE_07_NAME}_external_slave_start.sh)
+    copy_to_builddir(
+        ${NETWORK_TEST_SRC_DIR}/e2e_tests/${TEST_E2E_PROFILE_07_EXTERNAL_SLAVE_START_SCRIPT}
+        ${NETWORK_TEST_BIN_DIR}/${TEST_E2E_PROFILE_07_EXTERNAL_SLAVE_START_SCRIPT}
+        ${TEST_E2E_PROFILE_07_SERVICE}
+    )
+endif()
+
+##############################################################################
 # event tests
 ##############################################################################
 
@@ -3141,6 +3588,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     add_executable(${TEST_EVENT_CLIENT}
@@ -3151,6 +3600,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
     # Copy service config file for external allow tests into $BUILDDIR/test
     set(TEST_EVENT_SLAVE_TCP_CONFIG_FILE ${TEST_EVENT_NAME}_slave_tcp.json)
@@ -3207,7 +3658,7 @@ endif()
 ##############################################################################
 # npdu-test
 ##############################################################################
-if(NOT ${TESTS_BAT})
+if(NOT ${TESTS_BAT} AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "QNX")
     set(TEST_NPDU_NAME npdu_test)
 
     set(TEST_NPDU_DAEMON npdu_test_rmd)
@@ -3219,6 +3670,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_NPDU_DAEMON_SERVICE ${TEST_NPDU_DAEMON}_service_side)
@@ -3229,6 +3682,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     ##############################################################################
@@ -3244,6 +3699,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_NPDU_SERVICE_TWO npdu_test_service_2)
@@ -3255,6 +3712,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_NPDU_SERVICE_THREE npdu_test_service_3)
@@ -3266,6 +3725,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_NPDU_SERVICE_FOUR npdu_test_service_4)
@@ -3277,6 +3738,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # Copy config file for service w/o npdu into $BUILDDIR/test
@@ -3329,6 +3792,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_NPDU_CLIENT_TWO npdu_test_client_2)
@@ -3339,6 +3804,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_NPDU_CLIENT_THREE npdu_test_client_3)
@@ -3349,6 +3816,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_NPDU_CLIENT_FOUR npdu_test_client_4)
@@ -3359,6 +3828,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     # Copy config files for client w/o npdu into $BUILDDIR/test
@@ -3422,6 +3893,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     file(GLOB sd_sources
@@ -3445,8 +3918,10 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
         ${VSOMEIP_NAME}
         ${VSOMEIP_NAME}-sd
+        vsomeip_utilities
     )
 
     # Copy service config file for external allow tests into $BUILDDIR/test
@@ -3491,6 +3966,8 @@ if(NOT ${TESTS_BAT} AND ${TEST_SECOND_ADDRESS})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     add_executable(${TEST_SECOND_ADDRESS_CLIENT}
@@ -3501,6 +3978,8 @@ if(NOT ${TESTS_BAT} AND ${TEST_SECOND_ADDRESS})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_SECOND_ADDRESS_MASTER_SERVICE_UDP_CONFIG_FILE ${TEST_SECOND_ADDRESS_NAME}_master_service_udp.json)
@@ -3583,6 +4062,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     add_executable(${TEST_SUSPEND_RESUME_CLIENT}
@@ -3593,6 +4074,8 @@ if(NOT ${TESTS_BAT})
         ${Boost_LIBRARIES}
         ${DL_LIBRARY}
         ${TEST_LINK_LIBRARIES}
+        ${DLT_LIBRARIES}
+        vsomeip_utilities
     )
 
     set(TEST_SUSPEND_RESUME_SERVICE_CONFIG_FILE ${TEST_SUSPEND_RESUME_SERVICE}.json)
@@ -3658,6 +4141,12 @@ if(NOT ${TESTS_BAT})
     add_dependencies(${TEST_CLIENT_ID_UTILITY} gtest)
     add_dependencies(${TEST_DEBOUNCE_CLIENT} gtest)
     add_dependencies(${TEST_DEBOUNCE_SERVICE} gtest)
+    add_dependencies(${TEST_DEBOUNCE_FILTER_CLIENT} gtest)
+    add_dependencies(${TEST_DEBOUNCE_FILTER_SERVICE} gtest)
+    add_dependencies(${TEST_DEBOUNCE_CALLBACK_CLIENT} gtest)
+    add_dependencies(${TEST_DEBOUNCE_CALLBACK_SERVICE} gtest)
+    add_dependencies(${TEST_DEBOUNCE_FREQUENCY_CLIENT} gtest)
+    add_dependencies(${TEST_DEBOUNCE_FREQUENCY_SERVICE} gtest)
     add_dependencies(${TEST_SUBSCRIBE_NOTIFY_SERVICE} gtest)
     add_dependencies(${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SERVICE} gtest)
     add_dependencies(${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_CLIENT} gtest)
@@ -3688,8 +4177,13 @@ if(NOT ${TESTS_BAT})
     add_dependencies(${TEST_E2E_PROFILE_04_SERVICE} gtest)
     add_dependencies(${TEST_E2E_PROFILE_04_CLIENT} gtest)
     endif()
+    if (${TEST_E2E_PROFILE_07})
+    add_dependencies(${TEST_E2E_PROFILE_07_SERVICE} gtest)
+    add_dependencies(${TEST_E2E_PROFILE_07_CLIENT} gtest)
+    endif()
     add_dependencies(${TEST_EVENT_SERVICE} gtest)
     add_dependencies(${TEST_EVENT_CLIENT} gtest)
+    if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "QNX")
     add_dependencies(${TEST_NPDU_SERVICE_ONE} gtest)
     add_dependencies(${TEST_NPDU_SERVICE_TWO} gtest)
     add_dependencies(${TEST_NPDU_SERVICE_THREE} gtest)
@@ -3700,6 +4194,7 @@ if(NOT ${TESTS_BAT})
     add_dependencies(${TEST_NPDU_CLIENT_FOUR} gtest)
     add_dependencies(${TEST_NPDU_DAEMON_CLIENT} gtest)
     add_dependencies(${TEST_NPDU_DAEMON_SERVICE} gtest)
+    endif()
     add_dependencies(${TEST_SOMEIPTP_CLIENT} gtest)
     add_dependencies(${TEST_SOMEIPTP_SERVICE} gtest)
     if(${TEST_SECOND_ADDRESS})
@@ -3709,6 +4204,14 @@ if(NOT ${TESTS_BAT})
     add_dependencies(${TEST_SUSPEND_RESUME_CLIENT} gtest)
     add_dependencies(${TEST_SUSPEND_RESUME_SERVICE} gtest)
 else()
+    add_dependencies(${TEST_APPLICATION} gtest)
+    add_dependencies(${TEST_HEADER_FACTORY} gtest)
+    add_dependencies(${TEST_HEADER_FACTORY_CLIENT} gtest)
+    add_dependencies(${TEST_HEADER_FACTORY_SERVICE} gtest)
+    add_dependencies(${TEST_PAYLOAD_SERVICE} gtest)
+    add_dependencies(${TEST_PAYLOAD_CLIENT} gtest)
+    add_dependencies(${TEST_BIG_PAYLOAD_SERVICE} gtest)
+    add_dependencies(${TEST_BIG_PAYLOAD_CLIENT} gtest)
     add_dependencies(${TEST_LOCAL_ROUTING_SERVICE} gtest)
     add_dependencies(${TEST_LOCAL_ROUTING_CLIENT} gtest)
 endif()
@@ -3738,6 +4241,12 @@ if(NOT ${TESTS_BAT})
     add_dependencies(build_network_tests ${TEST_CLIENT_ID_UTILITY})
     add_dependencies(build_network_tests ${TEST_DEBOUNCE_CLIENT})
     add_dependencies(build_network_tests ${TEST_DEBOUNCE_SERVICE})
+    add_dependencies(build_network_tests ${TEST_DEBOUNCE_FILTER_CLIENT})
+    add_dependencies(build_network_tests ${TEST_DEBOUNCE_FILTER_SERVICE})
+    add_dependencies(build_network_tests ${TEST_DEBOUNCE_CALLBACK_CLIENT})
+    add_dependencies(build_network_tests ${TEST_DEBOUNCE_CALLBACK_SERVICE})
+    add_dependencies(build_network_tests ${TEST_DEBOUNCE_FREQUENCY_CLIENT})
+    add_dependencies(build_network_tests ${TEST_DEBOUNCE_FREQUENCY_SERVICE})
     add_dependencies(build_network_tests ${TEST_SUBSCRIBE_NOTIFY_SERVICE})
     add_dependencies(build_network_tests ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_SERVICE})
     add_dependencies(build_network_tests ${TEST_SUBSCRIBE_NOTIFY_ONE_EVENT_TWO_EVENTGROUPS_CLIENT})
@@ -3754,6 +4263,7 @@ if(NOT ${TESTS_BAT})
     add_dependencies(build_network_tests ${TEST_OFFER_EXTERNAL_SD_MESSAGE_SENDER})
     add_dependencies(build_network_tests ${TEST_OFFER_BIG_SERVICE})
     add_dependencies(build_network_tests ${TEST_OFFER_BIG_CLIENT})
+    add_dependencies(build_network_tests ${TEST_OFFER_MULTIPLE_OFFERING})
     add_dependencies(build_network_tests ${TEST_RESTART_ROUTING_SERVICE})
     add_dependencies(build_network_tests ${TEST_RESTART_ROUTING_CLIENT})
     if (${TEST_SECURITY})
@@ -3772,8 +4282,13 @@ if(NOT ${TESTS_BAT})
         add_dependencies(build_network_tests ${TEST_E2E_PROFILE_04_SERVICE})
         add_dependencies(build_network_tests ${TEST_E2E_PROFILE_04_CLIENT})
     endif()
+    if (${TEST_E2E_PROFILE_07})
+        add_dependencies(build_network_tests ${TEST_E2E_PROFILE_07_SERVICE})
+        add_dependencies(build_network_tests ${TEST_E2E_PROFILE_07_CLIENT})
+    endif()
     add_dependencies(build_network_tests ${TEST_EVENT_SERVICE})
     add_dependencies(build_network_tests ${TEST_EVENT_CLIENT})
+    if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "QNX")
     add_dependencies(build_network_tests ${TEST_NPDU_SERVICE_ONE})
     add_dependencies(build_network_tests ${TEST_NPDU_SERVICE_TWO})
     add_dependencies(build_network_tests ${TEST_NPDU_SERVICE_THREE})
@@ -3784,6 +4299,7 @@ if(NOT ${TESTS_BAT})
     add_dependencies(build_network_tests ${TEST_NPDU_CLIENT_FOUR})
     add_dependencies(build_network_tests ${TEST_NPDU_DAEMON_CLIENT})
     add_dependencies(build_network_tests ${TEST_NPDU_DAEMON_SERVICE})
+    endif()
     add_dependencies(build_network_tests ${TEST_SOMEIPTP_CLIENT})
     add_dependencies(build_network_tests ${TEST_SOMEIPTP_SERVICE})
     if(${TEST_SECOND_ADDRESS})
@@ -3793,6 +4309,14 @@ if(NOT ${TESTS_BAT})
     add_dependencies(build_network_tests ${TEST_SUSPEND_RESUME_CLIENT})
     add_dependencies(build_network_tests ${TEST_SUSPEND_RESUME_SERVICE})
 else()
+    add_dependencies(build_network_tests ${TEST_APPLICATION})
+    add_dependencies(build_network_tests ${TEST_BIG_PAYLOAD_SERVICE})
+    add_dependencies(build_network_tests ${TEST_BIG_PAYLOAD_CLIENT})
+    add_dependencies(build_network_tests ${TEST_PAYLOAD_SERVICE})
+    add_dependencies(build_network_tests ${TEST_PAYLOAD_CLIENT})
+    add_dependencies(build_network_tests ${TEST_HEADER_FACTORY})
+    add_dependencies(build_network_tests ${TEST_HEADER_FACTORY_CLIENT})
+    add_dependencies(build_network_tests ${TEST_HEADER_FACTORY_SERVICE})
     add_dependencies(build_network_tests ${TEST_LOCAL_ROUTING_SERVICE})
     add_dependencies(build_network_tests ${TEST_LOCAL_ROUTING_CLIENT})
 endif()
@@ -3853,7 +4377,7 @@ if(NOT ${TESTS_BAT})
     add_test(NAME ${TEST_LOCAL_PAYLOAD_HUGE_NAME}
         COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_PAYLOAD_HUGE_STARTER}
     )
-    set_tests_properties(${TEST_LOCAL_PAYLOAD_HUGE_NAME} PROPERTIES TIMEOUT 960)
+    set_tests_properties(${TEST_LOCAL_PAYLOAD_HUGE_NAME} PROPERTIES TIMEOUT 1800)
     add_test(NAME ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_NAME}
         COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_STARTER}
     )
@@ -3994,6 +4518,20 @@ if(NOT ${TESTS_BAT})
     add_test(NAME ${TEST_DEBOUNCE_NAME}
         COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_DEBOUNCE_MASTER_STARTER})
     set_tests_properties(${TEST_DEBOUNCE_UTILITY} PROPERTIES TIMEOUT 30)
+
+    # debounce filter tests
+    add_test(NAME ${TEST_DEBOUNCE_FILTER_NAME}
+        COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_DEBOUNCE_FILTER_MASTER_STARTER})
+    set_tests_properties(${TEST_DEBOUNCE_FILTER_UTILITY} PROPERTIES TIMEOUT 30)
+    # debounce callback tests
+    add_test(NAME ${TEST_DEBOUNCE_CALLBACK_NAME}
+    COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_DEBOUNCE_CALLBACK_MASTER_STARTER})
+    set_tests_properties(${TEST_DEBOUNCE_CALLBACK_NAME} PROPERTIES TIMEOUT 60)
+
+    # debounce frequency tests
+    add_test(NAME ${TEST_DEBOUNCE_FREQUENCY_NAME}
+        COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_DEBOUNCE_FREQUENCY_MASTER_STARTER})
+    set_tests_properties(${TEST_DEBOUNCE_FREQUENCY_NAME} PROPERTIES TIMEOUT 30)
 
     # subscribe notify tests (local communication via UDS)
     add_test(NAME ${TEST_SUBSCRIBE_NOTIFY_NAME}_diff_client_ids_diff_ports_udp_local_tcp
@@ -4224,9 +4762,15 @@ if(NOT ${TESTS_BAT})
     add_test(NAME ${TEST_OFFER_NAME}_external
         COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_OFFER_EXTERNAL_MASTER_STARTER})
     set_tests_properties(${TEST_OFFER_NAME}_local PROPERTIES TIMEOUT 360)
+
     add_test(NAME ${TEST_OFFER_BIG_NAME}
         COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_OFFER_BIG_MASTER_STARTER})
     set_tests_properties(${TEST_OFFER_BIG_NAME} PROPERTIES TIMEOUT 360)
+
+    # Multiple Offer tests
+    add_test(NAME ${TEST_OFFER_MULTIPLE_OFFERING}
+        COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_OFFER_MULTIPLE_OFFERING_STARTER})
+    set_tests_properties(${TEST_OFFER_MULTIPLE_OFFERING} PROPERTIES TIMEOUT 1800)
 
     # offered services info tets
     add_test(NAME ${TEST_OFFERED_SERVICES_INFO_NAME}_local
@@ -4273,7 +4817,7 @@ if(NOT ${TESTS_BAT})
 
     add_test(NAME ${TEST_PENDING_SUBSCRIPTION_NAME}_subscribe_resubscribe_mixed
         COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_PENDING_SUBSCRIPTION_MASTER_STARTER} SUBSCRIBE_RESUBSCRIBE_MIXED)
-    set_tests_properties(${TEST_PENDING_SUBSCRIPTION_NAME}_subscribe_resubscribe_mixed PROPERTIES TIMEOUT 180)
+    set_tests_properties(${TEST_PENDING_SUBSCRIPTION_NAME}_subscribe_resubscribe_mixed PROPERTIES TIMEOUT 300)
 
     add_test(NAME ${TEST_PENDING_SUBSCRIPTION_NAME}_subscribe_stopsubscribe_subscribe
     COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_PENDING_SUBSCRIPTION_MASTER_STARTER} SUBSCRIBE_STOPSUBSCRIBE_SUBSCRIBE)
@@ -4322,6 +4866,12 @@ if(NOT ${TESTS_BAT})
     add_test(NAME ${TEST_E2E_PROFILE_04_NAME}_external
     COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_E2E_PROFILE_04_EXTERNAL_MASTER_START_SCRIPT} e2e_profile_04_test_client_external.json)
     set_tests_properties(${TEST_E2E_PROFILE_04_NAME}_external PROPERTIES TIMEOUT 180)
+    endif ()
+
+    if (${TEST_E2E_PROFILE_07})
+    add_test(NAME ${TEST_E2E_PROFILE_07_NAME}_external
+    COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_E2E_PROFILE_07_EXTERNAL_MASTER_START_SCRIPT} e2e_profile_07_test_client_external.json)
+    set_tests_properties(${TEST_E2E_PROFILE_07_NAME}_external PROPERTIES TIMEOUT 180)
     endif ()
 
     # event tests
@@ -4387,5 +4937,106 @@ else()
     # Routing tests
     add_test(NAME ${TEST_LOCAL_ROUTING_NAME}
         COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_ROUTING_STARTER}
+    )
+
+    # application test
+    add_test(NAME ${TEST_APPLICATION}
+        COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_APPLICATION_STARTER}
+    )
+    set_tests_properties(${TEST_APPLICATION} PROPERTIES TIMEOUT 80)
+
+    # big payload tests
+    add_test(NAME ${TEST_LOCAL_BIG_PAYLOAD_NAME}
+        COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_BIG_PAYLOAD_STARTER}
+    )
+    set_tests_properties(${TEST_LOCAL_BIG_PAYLOAD_NAME} PROPERTIES TIMEOUT 120)
+
+    add_test(NAME ${TEST_LOCAL_BIG_PAYLOAD_NAME_RANDOM}
+        COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_BIG_PAYLOAD_STARTER} RANDOM
+    )
+    set_tests_properties(${TEST_LOCAL_BIG_PAYLOAD_NAME_RANDOM} PROPERTIES TIMEOUT 120)
+
+    add_test(NAME ${TEST_LOCAL_BIG_PAYLOAD_NAME_LIMITED}
+        COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_BIG_PAYLOAD_STARTER} LIMITED
+    )
+    set_tests_properties(${TEST_LOCAL_BIG_PAYLOAD_NAME_LIMITED} PROPERTIES TIMEOUT 120)
+
+    add_test(NAME ${TEST_LOCAL_BIG_PAYLOAD_NAME_QUEUE_LIMITED}
+        COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_BIG_PAYLOAD_STARTER} QUEUELIMITEDGENERAL
+    )
+    set_tests_properties(${TEST_LOCAL_BIG_PAYLOAD_NAME_QUEUE_LIMITED} PROPERTIES TIMEOUT 120)
+
+    add_test(NAME ${TEST_LOCAL_TCP_BIG_PAYLOAD_NAME}
+        COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_TCP_BIG_PAYLOAD_STARTER}
+    )
+    set_tests_properties(${TEST_LOCAL_TCP_BIG_PAYLOAD_NAME} PROPERTIES TIMEOUT 120)
+
+    add_test(NAME ${TEST_LOCAL_TCP_BIG_PAYLOAD_NAME_RANDOM}
+        COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_TCP_BIG_PAYLOAD_STARTER} RANDOM
+    )
+    set_tests_properties(${TEST_LOCAL_TCP_TCP_BIG_PAYLOAD_NAME_RANDOM} PROPERTIES TIMEOUT 120)
+
+    add_test(NAME ${TEST_LOCAL_TCP_BIG_PAYLOAD_NAME_LIMITED}
+        COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_TCP_BIG_PAYLOAD_STARTER} LIMITED
+    )
+    set_tests_properties(${TEST_LOCAL_TCP_BIG_PAYLOAD_NAME_LIMITED} PROPERTIES TIMEOUT 120)
+
+    add_test(NAME ${TEST_LOCAL_TCP_BIG_PAYLOAD_NAME_QUEUE_LIMITED}
+        COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_TCP_BIG_PAYLOAD_STARTER} QUEUELIMITEDGENERAL
+    )
+    set_tests_properties(${TEST_LOCAL_TCP_BIG_PAYLOAD_NAME_QUEUE_LIMITED} PROPERTIES TIMEOUT 120)
+
+    add_test(NAME ${TEST_EXTERNAL_BIG_PAYLOAD_NAME}
+        COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_STARTER}
+    )
+    set_tests_properties(${TEST_EXTERNAL_BIG_PAYLOAD_NAME} PROPERTIES TIMEOUT 120)
+
+    add_test(NAME ${TEST_EXTERNAL_BIG_PAYLOAD_NAME_RANDOM}
+        COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_STARTER} RANDOM
+    )
+    set_tests_properties(${TEST_EXTERNAL_BIG_PAYLOAD_NAME_RANDOM} PROPERTIES TIMEOUT 120)
+
+    add_test(NAME ${TEST_EXTERNAL_BIG_PAYLOAD_NAME_LIMITED}
+        COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_STARTER} LIMITED
+    )
+    set_tests_properties(${TEST_EXTERNAL_BIG_PAYLOAD_NAME_LIMITED} PROPERTIES TIMEOUT 120)
+
+    add_test(NAME ${TEST_EXTERNAL_BIG_PAYLOAD_NAME_LIMITED_GENERAL}
+        COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_STARTER} LIMITEDGENERAL
+    )
+    set_tests_properties(${TEST_EXTERNAL_BIG_PAYLOAD_NAME_LIMITED_GENERAL} PROPERTIES TIMEOUT 120)
+
+    add_test(NAME ${TEST_EXTERNAL_BIG_PAYLOAD_NAME_QUEUE_LIMITED_GENERAL}
+        COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_STARTER} QUEUELIMITEDGENERAL
+    )
+    set_tests_properties(${TEST_EXTERNAL_BIG_PAYLOAD_NAME_QUEUE_LIMITED_GENERAL} PROPERTIES TIMEOUT 120)
+
+    add_test(NAME ${TEST_EXTERNAL_BIG_PAYLOAD_NAME_QUEUE_LIMITED_SPECIFIC}
+        COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_STARTER} QUEUELIMITEDSPECIFIC
+    )
+    set_tests_properties(${TEST_EXTERNAL_BIG_PAYLOAD_NAME_QUEUE_LIMITED_SPECIFIC} PROPERTIES TIMEOUT 120)
+
+    add_test(NAME ${TEST_EXTERNAL_BIG_PAYLOAD_NAME_UDP}
+        COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_BIG_PAYLOAD_STARTER} UDP
+    )
+    set_tests_properties(${TEST_EXTERNAL_BIG_PAYLOAD_NAME_UDP} PROPERTIES TIMEOUT 120)
+
+    # Header/Factory tests
+    add_test(NAME ${TEST_HEADER_FACTORY_NAME} COMMAND ${TEST_HEADER_FACTORY})
+    add_test(NAME ${TEST_HEADER_FACTORY_NAME}_send_receive
+        COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_HEADER_FACTORY_STARTER}
+    )
+
+    # Payload tests
+    add_test(NAME ${TEST_LOCAL_PAYLOAD_NAME}
+        COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_PAYLOAD_STARTER}
+    )
+    add_test(NAME ${TEST_LOCAL_PAYLOAD_HUGE_NAME}
+        COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_LOCAL_PAYLOAD_HUGE_STARTER}
+    )
+    set_tests_properties(${TEST_LOCAL_PAYLOAD_HUGE_NAME} PROPERTIES TIMEOUT 1800)
+
+    add_test(NAME ${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_NAME}
+        COMMAND ${NETWORK_TEST_BIN_DIR}/${TEST_EXTERNAL_LOCAL_PAYLOAD_CLIENT_LOCAL_STARTER}
     )
 endif()

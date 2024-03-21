@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2021 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+// Copyright (C) 2014-2023 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -12,7 +12,9 @@
 
 #include <vsomeip/internal/logger.hpp>
 
+#ifndef __QNX__
 #include "../include/credentials.hpp"
+#endif
 #include "../include/endpoint_host.hpp"
 #include "../include/local_uds_server_endpoint_impl.hpp"
 #include "../include/local_server_endpoint_impl_receive_op.hpp"
@@ -62,12 +64,13 @@ local_uds_server_endpoint_impl::local_uds_server_endpoint_impl(
     if (ec)
         VSOMEIP_ERROR << __func__
             << ": listen failed (" << ec.message() << ")";
-
+#ifndef __QNX__
     if (chmod(_local.path().c_str(),
             static_cast<mode_t>(_configuration->get_permissions_uds())) == -1) {
         VSOMEIP_ERROR << __func__ << ": chmod: " << strerror(errno);
     }
     credentials::activate_credentials(acceptor_.native_handle());
+#endif
 }
 
 local_uds_server_endpoint_impl::local_uds_server_endpoint_impl(
@@ -92,11 +95,13 @@ local_uds_server_endpoint_impl::local_uds_server_endpoint_impl(
        VSOMEIP_ERROR << __func__
            << ": assign failed (" << ec.message() << ")";
 
+#ifndef __QNX__
     if (chmod(_local.path().c_str(),
             static_cast<mode_t>(_configuration->get_permissions_uds())) == -1) {
        VSOMEIP_ERROR << __func__ << ": chmod: " << strerror(errno);
     }
     credentials::activate_credentials(acceptor_.native_handle());
+#endif
 }
 
 local_uds_server_endpoint_impl::~local_uds_server_endpoint_impl() {
@@ -274,14 +279,15 @@ void local_uds_server_endpoint_impl::accept_cbk(
     }
 
     if (!_error) {
+#ifndef __QNX__
         auto its_host = endpoint_host_.lock();
         client_t its_client = 0;
         std::string its_client_host;
         vsomeip_sec_client_t its_sec_client;
 
-        its_sec_client.client_type = VSOMEIP_CLIENT_UDS;
-        its_sec_client.client.uds_client.user = ANY_UID;
-        its_sec_client.client.uds_client.group = ANY_GID;
+        its_sec_client.port = VSOMEIP_SEC_PORT_UNUSED;
+        its_sec_client.user = ANY_UID;
+        its_sec_client.group = ANY_GID;
 
         socket_type &its_socket = _connection->get_socket();
         if (auto creds = credentials::receive_credentials(its_socket.native_handle())) {
@@ -289,8 +295,8 @@ void local_uds_server_endpoint_impl::accept_cbk(
             its_client = std::get<0>(*creds);
             its_client_host = std::get<3>(*creds);
 
-            its_sec_client.client.uds_client.user = std::get<1>(*creds);
-            its_sec_client.client.uds_client.group = std::get<2>(*creds);
+            its_sec_client.user = std::get<1>(*creds);
+            its_sec_client.group = std::get<2>(*creds);
         } else {
             VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex << its_host->get_client()
                     << " is rejecting new connection because client credentials couldn't be received!";
@@ -305,8 +311,8 @@ void local_uds_server_endpoint_impl::accept_cbk(
                 VSOMEIP_WARNING << "vSomeIP Security: Rejecting new connection with routing manager client ID 0x"
                         << std::hex << its_client
                         << " uid/gid= " << std::dec
-                        << its_sec_client.client.uds_client.user << "/"
-                        << its_sec_client.client.uds_client.group
+                        << its_sec_client.user << "/"
+                        << its_sec_client.group
                         << " because passed credentials do not match with routing manager credentials!";
                 boost::system::error_code er;
                 its_socket.shutdown(its_socket.shutdown_both, er);
@@ -327,8 +333,8 @@ void local_uds_server_endpoint_impl::accept_cbk(
                         VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex
                                 << its_host->get_client() << " is rejecting new connection with client ID 0x"
                                 << its_client << " uid/gid= " << std::dec
-                                << its_sec_client.client.uds_client.user << "/"
-                                << its_sec_client.client.uds_client.group
+                                << its_sec_client.user << "/"
+                                << its_sec_client.group
                                 << " because of already existing connection using same client ID";
                         boost::system::error_code er;
                         its_socket.shutdown(its_socket.shutdown_both, er);
@@ -345,8 +351,8 @@ void local_uds_server_endpoint_impl::accept_cbk(
                      VSOMEIP_WARNING << "vSomeIP Security: Client 0x" << std::hex
                              << its_host->get_client() << " received client credentials from client 0x"
                              << its_client << " which violates the security policy : uid/gid="
-                             << std::dec << its_sec_client.client.uds_client.user << "/"
-                             << its_sec_client.client.uds_client.group;
+                             << std::dec << its_sec_client.user << "/"
+                             << its_sec_client.group;
                      boost::system::error_code er;
                      its_socket.shutdown(its_socket.shutdown_both, er);
                      its_socket.close(er);
@@ -368,7 +374,7 @@ void local_uds_server_endpoint_impl::accept_cbk(
             }
             _connection->set_bound_client_host(its_client_host);
         }
-
+#endif
         _connection->start();
     }
 }
@@ -394,15 +400,15 @@ local_uds_server_endpoint_impl::connection::connection(
       buffer_shrink_threshold_(_buffer_shrink_threshold),
       bound_client_(VSOMEIP_CLIENT_UNSET),
       bound_client_host_(""),
-      assigned_client_(false) {
+      assigned_client_(false),
+      is_stopped_(true) {
     if (_server->is_routing_endpoint_ &&
             !_server->configuration_->is_security_enabled()) {
         assigned_client_ = true;
     }
 
-    sec_client_.client_type = VSOMEIP_CLIENT_UDS;
-    sec_client_.client.uds_client.user = ANY_UID;
-    sec_client_.client.uds_client.group = ANY_GID;
+    sec_client_.user = ANY_UID;
+    sec_client_.group = ANY_GID;
 }
 
 local_uds_server_endpoint_impl::connection::ptr
@@ -469,8 +475,9 @@ void local_uds_server_endpoint_impl::connection::start() {
             return;
         }
 
+        is_stopped_ = false;
 #if VSOMEIP_BOOST_VERSION >= 106600
-        local_server_endpoint_impl_receive_op its_operation {
+        auto its_storage = std::make_shared<local_endpoint_receive_op::storage>(
             socket_,
             std::bind(
                 &local_uds_server_endpoint_impl::connection::receive_cbk,
@@ -482,11 +489,12 @@ void local_uds_server_endpoint_impl::connection::start() {
             ),
             &recv_buffer_[recv_buffer_size_],
             left_buffer_size,
-            std::numeric_limits<uint32_t>::max(),
-            std::numeric_limits<uint32_t>::max(),
-            std::numeric_limits<size_t>::min()
-        };
-        socket_.async_wait(socket_type::wait_read, its_operation);
+            std::numeric_limits<std::uint32_t>::max(),
+            std::numeric_limits<std::uint32_t>::max(),
+            std::numeric_limits<std::size_t>::min()
+        );
+
+        socket_.async_wait(socket_type::wait_read, local_endpoint_receive_op::receive_cb(its_storage));
 #else
         socket_.async_receive(
             boost::asio::buffer(&recv_buffer_[recv_buffer_size_], left_buffer_size),
@@ -505,14 +513,14 @@ void local_uds_server_endpoint_impl::connection::start() {
 
 void local_uds_server_endpoint_impl::connection::stop() {
     std::lock_guard<std::mutex> its_lock(socket_mutex_);
+    is_stopped_ = true;
     if (socket_.is_open()) {
         if (-1 == fcntl(socket_.native_handle(), F_GETFD)) {
             VSOMEIP_ERROR << "lse: socket/handle closed already '" << std::string(std::strerror(errno))
                           << "' (" << errno << ") " << get_path_local();
         }
         boost::system::error_code its_error;
-        socket_.shutdown(socket_.shutdown_both, its_error);
-        socket_.close(its_error);
+        socket_.cancel(its_error);
     }
 }
 
@@ -774,8 +782,8 @@ void local_uds_server_endpoint_impl::connection::receive_cbk(
                             VSOMEIP_WARNING << std::hex << "Client 0x" << its_host->get_client()
                                     << " is rejecting new connection with client ID 0x" << its_client
                                     << " uid/gid= " << std::dec
-                                    << sec_client_.client.uds_client.user << "/"
-                                    << sec_client_.client.uds_client.group
+                                    << sec_client_.user << "/"
+                                    << sec_client_.group
                                     << " because of already existing connection using same client ID";
                             stop();
                             return;
@@ -784,8 +792,8 @@ void local_uds_server_endpoint_impl::connection::receive_cbk(
                             VSOMEIP_WARNING << std::hex << "Client 0x" << its_host->get_client()
                                     << " received client credentials from client 0x" << its_client
                                     << " which violates the security policy : uid/gid="
-                                    << std::dec << sec_client_.client.uds_client.user << "/"
-                                    << sec_client_.client.uds_client.group;
+                                    << std::dec << sec_client_.user << "/"
+                                    << sec_client_.group;
                             its_server->remove_connection(its_client);
                             utility::release_client_id(its_config->get_network(),
                                     its_client);
@@ -804,11 +812,11 @@ void local_uds_server_endpoint_impl::connection::receive_cbk(
                     assigned_client_ = true;
                 } else if (!its_server->is_routing_endpoint_ || assigned_client_) {
 
-                    vsomeip_sec_client_t its_sec_client;
-                    memset(&its_sec_client, 0, sizeof(its_sec_client));
-                    its_sec_client.client_type = VSOMEIP_CLIENT_UDS;
-                    its_sec_client.client.uds_client.user = _uid;
-                    its_sec_client.client.uds_client.group = _gid;
+                    vsomeip_sec_client_t its_sec_client{};
+
+                    its_sec_client.port = VSOMEIP_SEC_PORT_UNUSED;
+                    its_sec_client.user = _uid;
+                    its_sec_client.group = _gid;
 
                     its_host->on_message(&recv_buffer_[its_start],
                                          uint32_t(its_end - its_start), its_server.get(),
@@ -851,10 +859,11 @@ void local_uds_server_endpoint_impl::connection::receive_cbk(
         } while (recv_buffer_size_ > 0 && found_message);
     }
 
-    if (_error == boost::asio::error::eof
+    if (is_stopped_
+            || _error == boost::asio::error::eof
             || _error == boost::asio::error::connection_reset
             || is_error) {
-        stop();
+        shutdown_and_close();
         its_server->remove_connection(bound_client_);
         policy_manager_impl::get()->remove_client_to_sec_client_mapping(bound_client_);
     } else if (_error != boost::asio::error::bad_descriptor) {
@@ -946,9 +955,7 @@ void local_uds_server_endpoint_impl::connection::handle_recv_buffer_exception(
             VSOMEIP_ERROR << "lse: socket/handle closed already '" << std::string(std::strerror(errno))
                           << "' (" << errno << ") " << get_path_local();
         }
-        boost::system::error_code its_error;
-        socket_.shutdown(socket_.shutdown_both, its_error);
-        socket_.close(its_error);
+
     }
     std::shared_ptr<local_uds_server_endpoint_impl> its_server = server_.lock();
     if (its_server) {
@@ -959,6 +966,19 @@ void local_uds_server_endpoint_impl::connection::handle_recv_buffer_exception(
 std::size_t
 local_uds_server_endpoint_impl::connection::get_recv_buffer_capacity() const {
     return recv_buffer_.capacity();
+}
+
+void
+local_uds_server_endpoint_impl::connection::shutdown_and_close() {
+    std::lock_guard<std::mutex> its_lock(socket_mutex_);
+    shutdown_and_close_unlocked();
+}
+
+void
+local_uds_server_endpoint_impl::connection::shutdown_and_close_unlocked() {
+    boost::system::error_code its_error;
+    socket_.shutdown(socket_.shutdown_both, its_error);
+    socket_.close(its_error);
 }
 
 void local_uds_server_endpoint_impl::print_status() {
@@ -987,6 +1007,7 @@ void local_uds_server_endpoint_impl::print_status() {
                 << " recv_buffer: " << std::dec << its_recv_size;
     }
 }
+
 std::string local_uds_server_endpoint_impl::get_remote_information(
         const target_data_iterator_type _it) const {
 
